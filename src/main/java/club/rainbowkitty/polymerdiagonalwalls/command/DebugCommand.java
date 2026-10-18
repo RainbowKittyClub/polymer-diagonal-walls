@@ -14,7 +14,7 @@ import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnDebug;
 
 /**
  * {@code /diagonals debug}: {@code columns} shows or hides the collision columns' shulkers and
- * slimes for everyone, so F3+B can draw their boxes, and returns the holders changed;
+ * frogs for everyone, so F3+B can draw their boxes, and returns the holders changed;
  * {@code paths} is {@link PathsDebugCommand} and {@code arms} {@link ArmsDebugCommand}. Each child
  * is gated on its own {@code polymerdiagonalwalls.command.debug.<child>} node, op level 2 as
  * fallback.

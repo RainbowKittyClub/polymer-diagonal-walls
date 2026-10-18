@@ -17,29 +17,29 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
  * @param columnWidth each shulker's box width, in blocks
  * @param shulkersPerColumn shulkers stacked in each column, each seated on the one below
  * @param columnHeight the height each column must reach; its lids open just far enough
- * @param slimeOffsets the centre of each ground slime, which pushes a player off the columns'
+ * @param pusherOffsets the centre of each ground pusher, which pushes a player off the columns'
  *        corners
- * @param slimeWidth each slime's box width and height, in blocks
+ * @param pusherWidth each pusher's box width and height, in blocks
  */
 public record ColumnLayout(
         List<Double> columnOffsets,
         double columnWidth,
         int shulkersPerColumn,
         double columnHeight,
-        List<Double> slimeOffsets,
-        double slimeWidth) {
+        List<Double> pusherOffsets,
+        double pusherWidth) {
     // A fully open lid, as a raw peek.
     private static final int OPEN_PEEK = 100;
 
     public ColumnLayout {
         columnOffsets = List.copyOf(columnOffsets);
-        slimeOffsets = List.copyOf(slimeOffsets);
+        pusherOffsets = List.copyOf(pusherOffsets);
         if (shulkersPerColumn < 0) {
             throw new IllegalArgumentException(
                     "ColumnLayout.shulkersPerColumn must be >= 0, got " + shulkersPerColumn);
         }
         requireScale("columnWidth", columnWidth, EntityTypes.SHULKER);
-        requireScale("slimeWidth", slimeWidth, EntityTypes.SLIME);
+        requireScale("pusherWidth", pusherWidth, EntityTypes.FROG);
         double openStack = shulkersPerColumn * shulkerHeight(columnWidth, OPEN_PEEK);
         if (shulkersPerColumn > 0 && !(columnHeight > 0 && columnHeight <= openStack)) {
             throw new IllegalArgumentException("ColumnLayout.columnHeight must be in (0, "
@@ -49,7 +49,7 @@ public record ColumnLayout(
 
     /** Whether this layout puts nothing on a diagonal. */
     public boolean isEmpty() {
-        return (columnOffsets.isEmpty() || shulkersPerColumn == 0) && slimeOffsets.isEmpty();
+        return (columnOffsets.isEmpty() || shulkersPerColumn == 0) && pusherOffsets.isEmpty();
     }
 
     /** The scale attribute that makes a shulker {@link #columnWidth} wide. */
@@ -73,11 +73,11 @@ public record ColumnLayout(
     }
 
     /**
-     * The scale attribute that makes a slime {@link #slimeWidth} wide. Riders keep the default
-     * size, 1, whose box is the entity type's (AbstractCubeMob.java:75, :259).
+     * The scale attribute that makes a pusher frog {@link #pusherWidth} wide. Riders are adults,
+     * whose box is the entity type's (LivingEntity.java:3720).
      */
-    public double slimeScale() {
-        return slimeWidth / EntityTypes.SLIME.getWidth();
+    public double pusherScale() {
+        return pusherWidth / EntityTypes.FROG.getWidth();
     }
 
     // A shulker's box height at a raw peek, in the client's float steps (Shulker.java:207, :264).

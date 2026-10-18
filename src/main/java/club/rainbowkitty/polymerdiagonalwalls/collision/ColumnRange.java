@@ -31,7 +31,7 @@ import net.minecraft.world.phys.Vec3;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.Diagonal;
 
 /**
- * Which players get which owner's columns. A client ticks every shulker and slime it holds as a
+ * Which players get which owner's columns. A client ticks every shulker and frog it holds as a
  * mob, so a player gets a {@link ColumnSite}'s columns only while it tracks the site's chunk
  * within {@link #COLLISION_RANGE} of it. A new site is offered to nearby players at the end of
  * the tick it appears in, and once a second each level's players are offered the sites near them,

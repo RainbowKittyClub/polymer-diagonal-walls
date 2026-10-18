@@ -30,7 +30,7 @@ public final class WallFamily implements DiagonalFamily {
             TagKey.create(Registries.BLOCK, PolymerDiagonalWalls.id("diagonal_walls"));
 
     // Two 0.25 columns between the post corners at +-0.25, three open shulkers tall: the 1.5 of a
-    // wall's collision. Each slime sits on a column, 1/16 wider on every side so a player can
+    // wall's collision. Each frog sits on a column, 1/16 wider on every side so a player can
     // overlap it; one the columns' size could never be entered and pushed no one.
     private static final ColumnLayout COLUMNS = new ColumnLayout(
             List.of(-0.125, 0.125), 0.25, 3, 1.5, List.of(-0.125, 0.125), 0.375);

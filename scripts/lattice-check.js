@@ -45,8 +45,8 @@ const Y = -53
 const AWAY = 2000
 // As layouts.sh LATTICE gives them, with each family's virtual entities per diagonal in range.
 const LATTICES = {
-  wall: { x0: 512, z0: 512, n: 256, shulkers: 6, slimes: 2 },
-  fence: { x0: 1024, z0: 512, n: 64, shulkers: 9, slimes: 2 }
+  wall: { x0: 512, z0: 512, n: 256, shulkers: 6, frogs: 2 },
+  fence: { x0: 1024, z0: 512, n: 64, shulkers: 9, frogs: 2 }
 }
 // SparkReport's --match: this mod, Polymer and the chunk system around them.
 const MATCH = '^(club\\.rainbowkitty\\.polymerdiagonalwalls\\.|eu\\.pb4\\.polymer\\.|' +
@@ -135,15 +135,15 @@ async function teleportLegs (name, lattice, { cmd, tp, bot, server, sparkJar }) 
       `${seen.arms} arms${sent == null ? '' : `, all within ${sent - start} ms`}`)
     if (mode === 'all') {
       const diagonals = seen.shulkers.length / lattice.shulkers
-      const perDiagonal = (seen.shulkers.length + seen.slimes.length + seen.vehicles.length) /
+      const perDiagonal = (seen.shulkers.length + seen.frogs.length + seen.vehicles.length) /
         diagonals + 1
-      const want = lattice.shulkers + lattice.slimes + (lattice.shulkers + lattice.slimes) + 1
+      const want = lattice.shulkers + lattice.frogs + (lattice.shulkers + lattice.frogs) + 1
       record(`${label}: each diagonal in collision range sends ${want} virtual entities`,
         Number.isInteger(diagonals) && diagonals > 0 && perDiagonal === want &&
-          seen.slimes.length === lattice.slimes * diagonals,
-        `${diagonals} diagonals: ${seen.shulkers.length} shulkers, ${seen.slimes.length} slimes, ` +
+          seen.frogs.length === lattice.frogs * diagonals,
+        `${diagonals} diagonals: ${seen.shulkers.length} shulkers, ${seen.frogs.length} frogs, ` +
           `${seen.vehicles.length} vehicles, so ${perDiagonal} each with the arm; ` +
-          `${seen.arms + seen.shulkers.length + seen.slimes.length + seen.vehicles.length} in all`)
+          `${seen.arms + seen.shulkers.length + seen.frogs.length + seen.vehicles.length} in all`)
     }
     record(`${label}: no tick over ${opts['slow-ms']} ms from the teleport on`,
       worstMs <= Number(opts['slow-ms']), `worst tick ${worstMs} ms (tick query P99 = max of 100)`)
@@ -361,14 +361,14 @@ async function until (test, timeoutMs) {
 }
 
 // What the bot holds within a square of side r around centre: arms are block displays with a
-// block state and no rider, vehicles carry a shulker or slime.
+// block state and no rider, vehicles carry a shulker or frog.
 function near (bot, centre, r) {
   const all = [...bot.tracked.values()]
     .filter(e => Math.abs(e.x - centre.x) <= r && Math.abs(e.z - centre.z) <= r)
   const displays = all.filter(e => e.name === 'block_display')
   return {
     shulkers: all.filter(e => e.name === 'shulker'),
-    slimes: all.filter(e => e.name === 'slime'),
+    frogs: all.filter(e => e.name === 'frog'),
     vehicles: displays.filter(e => e.passengers.length > 0),
     arms: displays.filter(e => e.passengers.length === 0 && e.meta[23] != null).length
   }

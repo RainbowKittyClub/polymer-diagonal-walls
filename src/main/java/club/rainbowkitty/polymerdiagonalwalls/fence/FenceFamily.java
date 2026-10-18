@@ -30,7 +30,7 @@ public final class FenceFamily implements DiagonalFamily {
             TagKey.create(Registries.BLOCK, PolymerDiagonalWalls.id("diagonal_fences"));
 
     // Three 0.25 columns between the post corners at +-0.375, three open shulkers tall: the 1.5 of
-    // a fence's collision (spike layout L12). Each slime spans a post corner to the corner point.
+    // a fence's collision (spike layout L12). Each frog spans a post corner to the corner point.
     private static final ColumnLayout COLUMNS = new ColumnLayout(
             List.of(-0.25, 0.0, 0.25), 0.25, 3, 1.5, List.of(-0.1875, 0.1875), 0.375);
 

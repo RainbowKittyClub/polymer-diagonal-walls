@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict'
-// Checks S11's and S12's client collision from one mineflayer bot's side: which shulkers, slimes
+// Checks S11's and S12's client collision from one mineflayer bot's side: which shulkers, frogs
 // and empty vehicle displays it is sent, where, on what, at what scale and peek, and when they come
 // and go as it moves around wall layouts A, F and G, fence layouts H and L and pane layout J. It
 // cannot tell whether they block; that is the user's check in a vanilla client. Needs the dev server up with
@@ -41,10 +41,10 @@ const Y = -53
 const OPEN_PEEK = 100
 // Mth.sin's table steps per radian.
 const SIN_SCALE = 10430.378350470453
-// Each family's layout, as its *Family class gives it: column and slime centres from the corner
-// point, column width and stack, the height a column must reach and the slime width.
+// Each family's layout, as its *Family class gives it: column and pusher centres from the corner
+// point, column width and stack, the height a column must reach and the pusher width.
 const FAMILIES = {
-  wall: family('WallFamily', [-0.125, 0.125], 0.25, 3, 1.5, [-0.125, 0.125], 0.25),
+  wall: family('WallFamily', [-0.125, 0.125], 0.25, 3, 1.5, [-0.125, 0.125], 0.375),
   fence: family('FenceFamily', [-0.25, 0, 0.25], 0.25, 3, 1.5, [-0.1875, 0.1875], 0.375),
   pane: family('PaneFamily', [-0.328125, -0.109375, 0.109375, 0.328125], 0.21875, 3, 1.0,
     [-0.21875, 0.21875], 0.4375)
@@ -129,7 +129,8 @@ async function main () {
     await tp(A_ORIGIN.x, A_ORIGIN.z + 5.5)
     const arrivalMs = await until(() => near(bot, A_ORIGIN, 4).riders.length >= 8, RECHECK_MS * 2.5)
     const inA = near(bot, A_ORIGIN, 4)
-    record('near: 5.5 blocks from A, its 6 shulkers, 2 slimes and 8 vehicles arrive within a recheck',
+    record('near: 5.5 blocks from A, its 6 shulkers, 2 frogs and 8 vehicles arrive ' +
+      'within a recheck',
       arrivalMs != null && arrivalMs - mark <= RECHECK_MS + 500 && counts(inA, 1, FAMILIES.wall),
       `${arrivalMs == null ? 'never' : `${arrivalMs - mark} ms`}; ${describe(inA)}`)
     checkLayout('A', inA, [A], FAMILIES.wall)
@@ -204,7 +205,7 @@ async function main () {
       .filter(e => Math.hypot(e.x - fresh.x, e.z - fresh.z) <= 0.5)
     const freshArm = freshSeen.find(e => e.name === 'block_display' && e.passengers.length === 0 &&
       e.meta[23] != null)
-    const freshRiders = freshSeen.filter(e => e.name === 'shulker' || e.name === 'slime')
+    const freshRiders = freshSeen.filter(e => e.name === 'shulker' || e.name === 'frog')
     const lag = freshArm == null || freshRiders.length === 0
       ? null
       : Math.max(...freshRiders.map(e => e.at)) - freshArm.at
@@ -221,7 +222,8 @@ async function main () {
     await tp(G_CENTRE.x, G_CENTRE.z)
     await until(() => near(bot, G_CENTRE, 6).riders.length >= G_DIAGONALS * 8, RECHECK_MS * 3)
     const inG = near(bot, G_CENTRE, 6)
-    record(`pen G: from its centre the bot holds ${G_DIAGONALS} diagonals' columns, slimes and vehicles`,
+    record(`pen G: from its centre the bot holds ${G_DIAGONALS} diagonals' columns, ` +
+      'frogs and vehicles',
       counts(inG, G_DIAGONALS, FAMILIES.wall), describe(inG))
     checkLayout('G', inG, G_LIST, FAMILIES.wall)
 
@@ -238,13 +240,14 @@ async function main () {
     await until(() => near(bot, H_CORNER, ONE).riders.length >= FAMILIES.fence.riders, RECHECK_MS * 3)
     const inH = near(bot, H_CORNER, ONE)
     record(`H: 5 blocks from the fence pair, its ${FAMILIES.fence.perDiagonal.shulker} shulkers, ` +
-      '2 slimes and their vehicles arrive', counts(inH, 1, FAMILIES.fence), describe(inH))
+      '2 frogs and their vehicles arrive', counts(inH, 1, FAMILIES.fence), describe(inH))
     checkLayout('H', inH, [H], FAMILIES.fence)
     await tp(L_CENTRE.x, L_CENTRE.z)
     await until(() => near(bot, L_CENTRE, 6).riders.length >= G_DIAGONALS * FAMILIES.fence.riders,
       RECHECK_MS * 3)
     const inL = near(bot, L_CENTRE, 6)
-    record(`pen L: from its centre the bot holds ${L_LIST.length} fence diagonals' columns, slimes and vehicles`,
+    record(`pen L: from its centre the bot holds ${L_LIST.length} fence diagonals' columns, ` +
+      'frogs and vehicles',
       counts(inL, L_LIST.length, FAMILIES.fence), describe(inL))
     checkLayout('L', inL, L_LIST, FAMILIES.fence)
 
@@ -257,8 +260,8 @@ async function main () {
     await tp(J.x + 0.5, J.z + 5.5)
     await until(() => near(bot, J_CORNER, ONE).riders.length >= pane.riders, RECHECK_MS * 3)
     const inJ = near(bot, J_CORNER, ONE)
-    record(`J: 5 blocks from the pane pair, its ${pane.perDiagonal.shulker} shulkers, 2 slimes and ` +
-      'their vehicles arrive', counts(inJ, 1, pane), describe(inJ))
+    record(`J: 5 blocks from the pane pair, its ${pane.perDiagonal.shulker} shulkers, 2 frogs ` +
+      'and their vehicles arrive', counts(inJ, 1, pane), describe(inJ))
     checkLayout('J', inJ, [J], pane)
 
     // A 2000-block trip and back.
@@ -292,27 +295,28 @@ async function main () {
   function seatsOf ({ x, z, dz }, fam) {
     const corner = { x: x + 1, z: z + (dz > 0 ? 1 : 0) }
     const shulkers = []
-    const slimes = []
+    const frogs = []
     for (const t of fam.offsets) {
       const bx = corner.x + t
       const bz = corner.z + dz * t
       for (let k = 0; k < fam.perColumn; k++) shulkers.push({ x: bx, y: Y + k * fam.step, z: bz })
     }
-    for (const t of fam.slimeOffsets) slimes.push({ x: corner.x + t, y: Y, z: corner.z + dz * t })
-    return { shulkers, slimes }
+    for (const t of fam.pusherOffsets) frogs.push({ x: corner.x + t, y: Y, z: corner.z + dz * t })
+    return { shulkers, frogs }
   }
 
   // Every vehicle carries one rider spawned where the family puts it, at the right scale and data.
   function checkLayout (label, seen, diagonals, fam) {
     const want = diagonals.map(d => seatsOf(d, fam))
     const wantShulkers = want.flatMap(w => w.shulkers)
-    const wantSlimes = want.flatMap(w => w.slimes)
+    const wantFrogs = want.flatMap(w => w.frogs)
     const vehicleAt = (seat, kind) => seen.vehicles.find(v => same(v, seat) && riderOf(v)?.name === kind)
     const shulkerSeats = wantShulkers.filter(seat => vehicleAt(seat, 'shulker') != null).length
-    const slimeSeats = wantSlimes.filter(seat => vehicleAt(seat, 'slime') != null).length
-    record(`${label}: every shulker and slime rides a vehicle at its ${fam.name} seat`,
-      shulkerSeats === wantShulkers.length && slimeSeats === wantSlimes.length,
-      `shulker seats ${shulkerSeats}/${wantShulkers.length}, slime seats ${slimeSeats}/${wantSlimes.length}`)
+    const frogSeats = wantFrogs.filter(seat => vehicleAt(seat, 'frog') != null).length
+    record(`${label}: every shulker and frog rides a vehicle at its ${fam.name} seat`,
+      shulkerSeats === wantShulkers.length && frogSeats === wantFrogs.length,
+      `shulker seats ${shulkerSeats}/${wantShulkers.length}, ` +
+        `frog seats ${frogSeats}/${wantFrogs.length}`)
     checkPairs(label, seen, fam)
   }
 
@@ -332,7 +336,7 @@ async function main () {
       if (near1(rider.x, vehicle.x) && near1(rider.z, vehicle.z) && near1(rider.y, vehicle.y - drop)) spawnOk++
       else bad.push(`${rider.name} ${rider.id} spawned ${fmt(rider)} under ${fmt(vehicle)}`)
       const scale = Object.keys(rider.attrs).length === 1 ? rider.attrs[SCALE_KEY] : undefined
-      const wantScale = rider.name === 'shulker' ? fam.shulkerScale : fam.slimeScale
+      const wantScale = rider.name === 'shulker' ? fam.shulkerScale : fam.pusherScale
       if (scale != null && Math.abs(scale - wantScale) < 1e-6) scaleOk++
       else bad.push(`${rider.name} ${rider.id} scale ${scale}`)
       const peekOk = rider.name !== 'shulker' || rider.meta[SHULKER_PEEK] === fam.peek
@@ -356,9 +360,9 @@ function near (bot, centre, r) {
   const all = [...bot.tracked.values()].filter(e => Math.hypot(e.x - centre.x, e.z - centre.z) <= r)
   const displays = all.filter(e => e.name === 'block_display')
   return {
-    riders: all.filter(e => e.name === 'shulker' || e.name === 'slime'),
+    riders: all.filter(e => e.name === 'shulker' || e.name === 'frog'),
     shulkers: all.filter(e => e.name === 'shulker'),
-    slimes: all.filter(e => e.name === 'slime'),
+    frogs: all.filter(e => e.name === 'frog'),
     vehicles: displays.filter(e => e.passengers.length > 0),
     arms: displays.filter(e => e.passengers.length === 0 && e.meta[23] != null).length
   }
@@ -366,12 +370,12 @@ function near (bot, centre, r) {
 
 function counts (seen, diagonals, fam) {
   return seen.shulkers.length === fam.perDiagonal.shulker * diagonals &&
-    seen.slimes.length === fam.perDiagonal.slime * diagonals &&
+    seen.frogs.length === fam.perDiagonal.frog * diagonals &&
     seen.vehicles.length === fam.perDiagonal.vehicle * diagonals
 }
 
 // One family's expected layout, with the lid peek and seat step the client works out.
-function family (name, offsets, width, perColumn, height, slimeOffsets, slimeWidth) {
+function family (name, offsets, width, perColumn, height, pusherOffsets, pusherWidth) {
   let peek = 0
   while (peek < OPEN_PEEK && perColumn * shulkerHeight(width, peek) < height) peek++
   const shulkers = offsets.length * perColumn
@@ -381,13 +385,17 @@ function family (name, offsets, width, perColumn, height, slimeOffsets, slimeWid
     width,
     perColumn,
     height,
-    slimeOffsets,
+    pusherOffsets,
     peek,
     step: shulkerHeight(width, peek),
     shulkerScale: width,
-    slimeScale: slimeWidth / 0.52,
-    riders: shulkers + slimeOffsets.length,
-    perDiagonal: { shulker: shulkers, slime: slimeOffsets.length, vehicle: shulkers + slimeOffsets.length }
+    pusherScale: pusherWidth / 0.5,
+    riders: shulkers + pusherOffsets.length,
+    perDiagonal: {
+      shulker: shulkers,
+      frog: pusherOffsets.length,
+      vehicle: shulkers + pusherOffsets.length
+    }
   }
 }
 
@@ -405,8 +413,8 @@ function shulkerHeight (width, peek) {
 }
 
 function describe (seen) {
-  return `${seen.shulkers.length} shulkers, ${seen.slimes.length} slimes, ${seen.vehicles.length} vehicles, ` +
-    `${seen.arms} arms`
+  return `${seen.shulkers.length} shulkers, ${seen.frogs.length} frogs, ` +
+    `${seen.vehicles.length} vehicles, ${seen.arms} arms`
 }
 
 function invisible (entity) {
