@@ -97,6 +97,18 @@ public final class ArmIndex {
         return owners == null ? null : owners.get(pos.asLong());
     }
 
+    /** The chunks with holders in {@code level}, as a copy. */
+    public static LongArrayList chunkKeys(ServerLevel level) {
+        Long2ObjectMap<Long2ObjectMap<ArmHolder>> chunks = LEVELS.get(level);
+        return chunks == null ? new LongArrayList() : new LongArrayList(chunks.keySet());
+    }
+
+    /** The owners with holders in the chunk {@code chunkKey} of {@code level}, as a copy. */
+    public static LongArrayList ownerKeys(ServerLevel level, long chunkKey) {
+        Long2ObjectMap<ArmHolder> owners = chunks(level).get(chunkKey);
+        return owners == null ? new LongArrayList() : new LongArrayList(owners.keySet());
+    }
+
     /** How many attached holders and arms {@code level} has. */
     public static Counts counts(ServerLevel level) {
         Long2ObjectMap<Long2ObjectMap<ArmHolder>> chunks = LEVELS.get(level);
