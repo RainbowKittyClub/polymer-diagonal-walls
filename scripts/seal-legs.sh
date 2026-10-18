@@ -2,13 +2,13 @@
 # Runs the diagonal-walls plan's S7 and S13 legs on a running dev server, over its rcon: items and
 # arrows into one gap (wall A, fence H or pane J), and animals penned in diamond G (walls) or L
 # (fences) through a tick sprint. Build the layouts first (scripts/layouts.sh build). Each leg runs
-# under the current settings unless given a mode, and prints which side of the diagonal everything
-# ended on. Modes: on seals gaps and routes mobs around them, boxes seals them but leaves vanilla
-# routing (/diagonals debug paths off), off leaves gaps open (game rule seal_gaps false).
+# with the current paths switch unless given a mode, and prints which side of the diagonal
+# everything ended on. Modes: on seals gaps and routes mobs around them, boxes seals them but leaves
+# vanilla routing (/diagonals debug paths off).
 #
-#   scripts/seal-legs.sh items [on|boxes|off] [A|H|J]          # three items slid into the gap
-#   scripts/seal-legs.sh arrows [on|boxes|off] [A|H|J]         # two arrows shot into the gap
-#   scripts/seal-legs.sh pen [on|boxes|off] [ticks] [G|L]      # 30 animals, sprint (default 24000)
+#   scripts/seal-legs.sh items [on|boxes] [A|H|J]              # three items slid into the gap
+#   scripts/seal-legs.sh arrows [on|boxes] [A|H|J]             # two arrows shot into the gap
+#   scripts/seal-legs.sh pen [on|boxes] [ticks] [G|L]          # 30 animals, sprint (default 24000)
 #   scripts/seal-legs.sh pen-count [G|L]                       # where those animals are now
 #
 # MOD_DIR (default: this checkout) picks the dev server.
@@ -46,12 +46,10 @@ rc() {
 set_mode() {
     case "${1:-}" in
         "") ;;
-        on|boxes|off)
-            rc "gamerule polymerdiagonalwalls:seal_gaps $([[ $1 == off ]] && echo false || echo true)" \
-                >/dev/null
+        on|boxes)
             rc "diagonals debug paths $([[ $1 == boxes ]] && echo off || echo on)" >/dev/null
             ;;
-        *) echo "no mode $1; want on, boxes or off" >&2; exit 2 ;;
+        *) echo "no mode $1; want on or boxes" >&2; exit 2 ;;
     esac
 }
 
@@ -203,7 +201,7 @@ case "${1:-}" in
     pen) shift; cmd_pen "$@" ;;
     pen-count) shift; pen_count "$@" ;;
     *)
-        echo "usage: scripts/seal-legs.sh <items|arrows|pen|pen-count> [on|boxes|off] [ticks]" \
+        echo "usage: scripts/seal-legs.sh <items|arrows|pen|pen-count> [on|boxes] [ticks]" \
             "[layout]" >&2
         exit 1
         ;;

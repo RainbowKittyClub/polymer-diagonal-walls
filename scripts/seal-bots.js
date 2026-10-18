@@ -12,15 +12,14 @@
 //     vanilla shapes. Passes when the server lets it through with no forced move and no "moved
 //     wrongly"; on a client, the columns stop it, and mineflayer collides with no entity.
 //   lure: a chicken starts in the pen's centre with the bot outside the gap holding wheat seeds,
-//     once per seal mode in --modes (default on,boxes,off). With "on" the chicken should stop
-//     inside, off the corner; "boxes" (/diagonals debug paths off) pins it in the corner, and "off"
-//     (game rule seal_gaps false) lets it through, the two controls.
+//     once per seal mode in --modes (default on,boxes). With "on" the chicken should stop inside,
+//     off the corner; "boxes" (/diagonals debug paths off), the control, pins it in the corner.
 //
 // Run with the sandbox off (RCON and the bot use loopback). The bot joins as 26.1, so run/mods
 // needs ViaFabric and ViaBackwards (rkc/mods/artifacts/run/mods has both).
 //
 //   node scripts/seal-bots.js [--mod-dir <worktree>] [--legs corner,cross,lure]
-//       [--modes on,boxes,off]
+//       [--modes on,boxes]
 const fs = require('node:fs')
 const path = require('node:path')
 const { createRequire } = require('node:module')
@@ -30,7 +29,7 @@ const { values: opts } = parseArgs({
   options: {
     'mod-dir': { type: 'string', default: path.resolve(__dirname, '..') },
     legs: { type: 'string', default: 'corner,cross,lure' },
-    modes: { type: 'string', default: 'on,boxes,off' },
+    modes: { type: 'string', default: 'on,boxes' },
     version: { type: 'string', default: '26.1' },
     seconds: { type: 'string', default: '15' }
   }
@@ -195,11 +194,10 @@ async function lureLeg (bot, mode) {
   const first = samples[0]
   const last = samples.at(-1)
   const lineSide = (last.x - A.x) - (last.z - A.z) > 0 ? 'outside' : 'inside'
-  // on: stands off the corner; boxes: pinned in it, the control; off: through the gap.
+  // on: stands off the corner; boxes: pinned in it, the control.
   const expected = {
     on: lineSide === 'inside' && nearest > 0.5 && travel(settled) < 0.05,
-    boxes: lineSide === 'inside' && nearest < 0.4,
-    off: lineSide === 'outside'
+    boxes: lineSide === 'inside' && nearest < 0.4
   }
   record(`lure seal=${mode}`, expected[mode] ?? false,
     `${samples.length} samples over ${opts.seconds} s: ` +
@@ -209,9 +207,8 @@ async function lureLeg (bot, mode) {
     `nearest the corner point then ${nearest.toFixed(3)}`)
 }
 
-// Seals gaps and routes mobs around them (on), seals them alone (boxes), or leaves them open (off).
+// Routes mobs around sealed gaps (on), or leaves vanilla routing into them (boxes).
 async function setSeal (mode) {
-  await cmd(`gamerule polymerdiagonalwalls:seal_gaps ${mode !== 'off'}`)
   await cmd(`diagonals debug paths ${mode === 'boxes' ? 'off' : 'on'}`)
 }
 
