@@ -46,8 +46,7 @@ public final class ArmTransform {
     public static void apply(
             BlockDisplayElement arm, Diagonal diagonal, Vec3 origin, float length, float height) {
         int dz = diagonal.dz();
-        Vec3 corner = Vec3.atLowerCornerOf(diagonal.west()).add(1, 0, dz > 0 ? 1 : 0);
-        Vec3 entityPosition = corner.add(-NUDGE, 0, -dz * NUDGE);
+        Vec3 entityPosition = diagonal.corner().add(-NUDGE, 0, -dz * NUDGE);
 
         // p -> T + R(theta) S (p - c). JOML's rotationY sends +z to (sin, cos), so +45° runs
         // south-east and -45° along the north-east line.

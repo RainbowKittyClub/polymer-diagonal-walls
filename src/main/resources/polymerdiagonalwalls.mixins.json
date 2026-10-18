@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_${project.java_version}",
   "mixins": [
     "LevelChunkMixin",
+    "ShulkerAccessor",
     "WalkNodeEvaluatorMixin",
     "WallBlockMixin"
   ],

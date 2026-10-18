@@ -13,5 +13,7 @@
   "commands.polymerdiagonalwalls.probe.full": "full-height",
   "commands.polymerdiagonalwalls.rebuild.done": "Refreshed %s blocks in %s loaded chunks; this dimension now has %s holders and %s arms",
   "commands.polymerdiagonalwalls.stats.level": "%s: %s holders, %s arms",
-  "commands.polymerdiagonalwalls.stats.total": "Total: %s holders, %s arms"
+  "commands.polymerdiagonalwalls.stats.total": "Total: %s holders, %s arms",
+  "commands.polymerdiagonalwalls.debug.columns.shown": "Collision columns are now visible, on %s holders",
+  "commands.polymerdiagonalwalls.debug.columns.hidden": "Collision columns are hidden again, on %s holders"
 }

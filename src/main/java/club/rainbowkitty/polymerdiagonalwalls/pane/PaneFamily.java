@@ -1,5 +1,7 @@
 package club.rainbowkitty.polymerdiagonalwalls.pane;
 
+import java.util.List;
+
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
@@ -9,6 +11,7 @@ import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 import club.rainbowkitty.polymerdiagonalwalls.PolymerDiagonalWalls;
+import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnLayout;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalFamily;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalRule;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmVisual;
@@ -25,6 +28,10 @@ public final class PaneFamily implements DiagonalFamily {
      */
     public static final TagKey<Block> DIAGONAL_PANES =
             TagKey.create(Registries.BLOCK, PolymerDiagonalWalls.id("diagonal_panes"));
+
+    // No client collision yet.
+    private static final ColumnLayout COLUMNS =
+            new ColumnLayout(List.of(), 0.25, 0, List.of(), 0.25);
 
     private final ArmVisual visual = CrossArmVisual.pane();
 
@@ -60,5 +67,10 @@ public final class PaneFamily implements DiagonalFamily {
     @Override
     public ArmVisual visual() {
         return visual;
+    }
+
+    @Override
+    public ColumnLayout columns() {
+        return COLUMNS;
     }
 }

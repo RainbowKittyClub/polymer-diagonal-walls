@@ -499,7 +499,7 @@ middle column stands, so the look and the collision agree there.
 - In the dev client, from every angle, no bar or panel end shows outside a post.
 - The user has judged the corner post on layout H and the stretched glass on layout J.
 
-## S11 — Client collision columns — **planned**
+## S11 — Client collision columns — **in progress**
 
 **Build.** `collision/ShulkerColumns` gives each diagonal columns of three shulkers at scale 0.25,
 fully open, 1.5 tall, with the invisible flag set. Each family places them at offsets from the
@@ -542,7 +542,7 @@ collision check at `ServerGamePacketListenerImpl.java:1156`.
 - nothing rubber-bands;
 - after a relog, and after teleporting away and back, every column still stops a jump.
 
-## S12 — Slimes that ease players along the arm — **planned**
+## S12 — Slimes that ease players along the arm — **in progress**
 
 **Build.** Two virtual slimes per diagonal sit on the ground, each spanning a post corner to the
 corner point:

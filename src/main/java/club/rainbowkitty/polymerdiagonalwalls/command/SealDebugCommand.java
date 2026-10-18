@@ -13,8 +13,8 @@ import club.rainbowkitty.polymerdiagonalwalls.collision.GapSeal;
 /**
  * {@code /diagonals debug seal <on|boxes|off>}: seals diagonal gaps for non-players with corner
  * boxes and pathfinding ({@code on}), with corner boxes alone ({@code boxes}), or not at all, so
- * a mob check can run against each. Gated on {@code polymerdiagonalwalls.command.debug}, op level
- * 2 as fallback.
+ * a mob check can run against each. Gated on {@code polymerdiagonalwalls.command.debug.seal}, op
+ * level 2 as fallback; {@link DebugCommand} holds it.
  */
 public final class SealDebugCommand {
     private static final String KEY = "commands.polymerdiagonalwalls.debug.seal.";
@@ -22,15 +22,14 @@ public final class SealDebugCommand {
     private SealDebugCommand() {
     }
 
-    /** The {@code debug} literal holding {@code seal}, gate included. */
+    /** The {@code seal} literal, gate included. */
     public static LiteralArgumentBuilder<CommandSourceStack> node() {
-        return Commands.literal("debug")
+        return Commands.literal("seal")
                 .requires(PolymerDiagonalWalls.permissions()
-                        .require("debug", PermissionLevel.GAMEMASTERS))
-                .then(Commands.literal("seal")
-                        .then(mode("on", true, true))
-                        .then(mode("boxes", true, false))
-                        .then(mode("off", false, false)));
+                        .require("debug.seal", PermissionLevel.GAMEMASTERS))
+                .then(mode("on", true, true))
+                .then(mode("boxes", true, false))
+                .then(mode("off", false, false));
     }
 
     // One mode literal under seal.
