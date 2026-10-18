@@ -912,6 +912,10 @@ The RKC Polymer fork changes none of this.
   (`BlockBoundAttachment.java:36–44`). Walls aren't, hence `ChunkAttachment` plus our own index.
 - Chunk unload (`setLoaded(false)`) destroys every holder in the chunk (`WorldChunkMixin.java:111`).
 - Watching starts on `sendChunk` and stops on `dropChunk` (`ChunkDataSenderMixin.java:21`, `:28`).
+- That stop re-checks `isPlayerTracking` (`ChunkAttachment.java:134`), which still reads the old
+  tracking view (`ChunkMap.java:1127`), so leaving a chunk that stays loaded stops nothing. A bot
+  2000 blocks from forced pen G kept all 16 arms. Unload, death, a level change or a disconnect
+  still end it.
 
 ## Reference: Lattice load
 
