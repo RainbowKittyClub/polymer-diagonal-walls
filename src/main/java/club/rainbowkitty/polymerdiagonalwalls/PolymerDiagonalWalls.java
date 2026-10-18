@@ -8,6 +8,7 @@ import net.minecraft.resources.Identifier;
 
 import club.rainbowkitty.kalic0re.common.command.CommandPermissions;
 import club.rainbowkitty.kalic0re.common.text.FallbackText;
+import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnDebug;
 import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnRange;
 import club.rainbowkitty.polymerdiagonalwalls.command.DiagonalsCommand;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
@@ -45,6 +46,7 @@ public class PolymerDiagonalWalls implements ModInitializer {
         WallFamily.register();
         ArmIndex.register();
         ColumnRange.register();
+        ColumnDebug.register();
         DiagonalsCommand.register();
     }
 }

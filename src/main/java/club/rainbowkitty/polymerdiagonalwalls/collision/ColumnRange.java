@@ -1,10 +1,12 @@
 package club.rainbowkitty.polymerdiagonalwalls.collision;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import eu.pb4.polymer.virtualentity.api.VirtualEntityUtils;
 import eu.pb4.polymer.virtualentity.api.attachment.HolderAttachment;
@@ -93,6 +95,22 @@ public final class ColumnRange {
         HolderAttachment attachment = holder.getAttachment();
         return attachment != null
                 && within(player, attachment.getWorld(), holder.getPos(), COLLISION_RANGE);
+    }
+
+    /** Runs {@code action} on every built holder, and returns how many there were. */
+    public static int forEachBuilt(Consumer<ColumnHolder> action) {
+        List<ColumnHolder> holders = new ArrayList<>();
+        for (Long2ObjectMap<Set<ColumnSite>> chunks : SITES.values()) {
+            for (Set<ColumnSite> inChunk : chunks.values()) {
+                for (ColumnSite site : inChunk) {
+                    if (site.holder() != null) {
+                        holders.add(site.holder());
+                    }
+                }
+            }
+        }
+        holders.forEach(action);
+        return holders.size();
     }
 
     // Counts server ticks, rechecking every level once RECHECK_TICKS have passed.
