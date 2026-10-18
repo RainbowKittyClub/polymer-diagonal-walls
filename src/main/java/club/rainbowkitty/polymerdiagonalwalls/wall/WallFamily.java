@@ -11,6 +11,8 @@ import net.minecraft.world.level.block.state.properties.WallSide;
 import club.rainbowkitty.polymerdiagonalwalls.PolymerDiagonalWalls;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalFamily;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalRule;
+import club.rainbowkitty.polymerdiagonalwalls.display.ArmVisual;
+import club.rainbowkitty.polymerdiagonalwalls.display.WallArmVisual;
 
 /**
  * Walls as a diagonal family. Any two diagonal walls join, mixed materials included, because
@@ -23,6 +25,8 @@ public final class WallFamily implements DiagonalFamily {
      */
     public static final TagKey<Block> DIAGONAL_WALLS =
             TagKey.create(Registries.BLOCK, PolymerDiagonalWalls.id("diagonal_walls"));
+
+    private final ArmVisual visual = new WallArmVisual();
 
     private WallFamily() {
     }
@@ -45,5 +49,10 @@ public final class WallFamily implements DiagonalFamily {
     @Override
     public boolean joins(BlockState a, BlockState b) {
         return true;
+    }
+
+    @Override
+    public ArmVisual visual() {
+        return visual;
     }
 }

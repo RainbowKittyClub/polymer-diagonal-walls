@@ -3,6 +3,8 @@ package club.rainbowkitty.polymerdiagonalwalls.diagonal;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 
+import club.rainbowkitty.polymerdiagonalwalls.display.ArmVisual;
+
 /**
  * One kind of block that takes diagonals, such as walls. {@link DiagonalRule} asks each
  * registered family whether it admits a state and reads the state's sides through it, so a family
@@ -17,4 +19,7 @@ public interface DiagonalFamily {
 
     /** Whether two admitted states would join each other, as vanilla joins them cardinally. */
     public boolean joins(BlockState a, BlockState b);
+
+    /** How this family's arms are drawn. */
+    public ArmVisual visual();
 }
