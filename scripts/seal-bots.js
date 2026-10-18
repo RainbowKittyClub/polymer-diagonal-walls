@@ -12,9 +12,9 @@
 //     vanilla shapes. Passes when the server lets it through with no forced move and no "moved
 //     wrongly"; on a client, the columns stop it, and mineflayer collides with no entity.
 //   lure: a chicken starts in the pen's centre with the bot outside the gap holding wheat seeds,
-//     once per /diagonals debug seal mode in --modes (default on,boxes,off). With "on" the chicken
-//     should stop inside, off the corner; "boxes" (no pathfinding rule) pins it in the corner, and
-//     "off" lets it through, the two controls.
+//     once per seal mode in --modes (default on,boxes,off). With "on" the chicken should stop
+//     inside, off the corner; "boxes" (/diagonals debug paths off) pins it in the corner, and "off"
+//     (game rule seal_gaps false) lets it through, the two controls.
 //
 // Run with the sandbox off (RCON and the bot use loopback). The bot joins as 26.1, so run/mods
 // needs ViaFabric and ViaBackwards (rkc/mods/artifacts/run/mods has both).
@@ -96,7 +96,7 @@ async function main () {
     }
   } finally {
     await cmd('kill @e[tag=pdw_lure]')
-    await cmd('diagonals debug seal on')
+    await setSeal('on')
     bot.quit()
     rcon.close()
   }
@@ -107,7 +107,7 @@ async function main () {
 
 // Walks the bot into the gap's corner from one side and reads back where the server holds it.
 async function cornerLeg (bot, logFile) {
-  await cmd('diagonals debug seal on')
+  await setSeal('on')
   const sides = [
     // Inside the pen, south-west of the line: the deepest spot is local (0.95, 1.05).
     { name: 'inside', start: new Vec3(137.3, FLOOR_Y, 102.8), aim: new Vec3(138.7, FLOOR_Y, 101.3) },
@@ -142,7 +142,7 @@ async function cornerLeg (bot, logFile) {
 
 // Walks the bot from the north-east straight along each crossing's line through its corner point.
 async function crossLeg (bot, logFile) {
-  await cmd('diagonals debug seal on')
+  await setSeal('on')
   for (const crossing of CROSSINGS) {
     const { x, z } = crossing.corner
     await teleport(bot, new Vec3(x + 1.2, FLOOR_Y, z - 1.2))
@@ -168,7 +168,7 @@ async function crossLeg (bot, logFile) {
 
 // Lures a chicken toward the bot across the gap and measures how it moves.
 async function lureLeg (bot, mode) {
-  await cmd(`diagonals debug seal ${mode}`)
+  await setSeal(mode)
   await cmd('kill @e[tag=pdw_lure]')
   await teleport(bot, new Vec3(140.5, FLOOR_Y, 99.5))
   await cmd(`item replace entity ${BOT} weapon.mainhand with minecraft:wheat_seeds`)
@@ -207,6 +207,12 @@ async function lureLeg (bot, mode) {
     `(${last.x.toFixed(3)}, ${last.z.toFixed(3)}); ` +
     `travelled ${travel(0).toFixed(2)} in all and ${travel(settled).toFixed(3)} once settled, ` +
     `nearest the corner point then ${nearest.toFixed(3)}`)
+}
+
+// Seals gaps and routes mobs around them (on), seals them alone (boxes), or leaves them open (off).
+async function setSeal (mode) {
+  await cmd(`gamerule polymerdiagonalwalls:seal_gaps ${mode !== 'off'}`)
+  await cmd(`diagonals debug paths ${mode === 'boxes' ? 'off' : 'on'}`)
 }
 
 // Whether a player standing at pos overlaps the box's footprint.

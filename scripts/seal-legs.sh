@@ -2,8 +2,9 @@
 # Runs the diagonal-walls plan's S7 and S13 legs on a running dev server, over its rcon: items and
 # arrows into one gap (wall A, fence H or pane J), and animals penned in diamond G (walls) or L
 # (fences) through a tick sprint. Build the layouts first (scripts/layouts.sh build). Each leg runs
-# under the current /diagonals debug seal mode unless given one, and prints which side of the
-# diagonal everything ended on.
+# under the current settings unless given a mode, and prints which side of the diagonal everything
+# ended on. Modes: on seals gaps and routes mobs around them, boxes seals them but leaves vanilla
+# routing (/diagonals debug paths off), off leaves gaps open (game rule seal_gaps false).
 #
 #   scripts/seal-legs.sh items [on|boxes|off] [A|H|J]          # three items slid into the gap
 #   scripts/seal-legs.sh arrows [on|boxes|off] [A|H|J]         # two arrows shot into the gap
@@ -43,8 +44,15 @@ rc() {
 }
 
 set_mode() {
-    [[ -n "${1:-}" ]] && rc "diagonals debug seal $1" >/dev/null
-    return 0
+    case "${1:-}" in
+        "") ;;
+        on|boxes|off)
+            rc "gamerule polymerdiagonalwalls:seal_gaps $([[ $1 == off ]] && echo false || echo true)" \
+                >/dev/null
+            rc "diagonals debug paths $([[ $1 == boxes ]] && echo off || echo on)" >/dev/null
+            ;;
+        *) echo "no mode $1; want on, boxes or off" >&2; exit 2 ;;
+    esac
 }
 
 # "x y z" of the first entity matching selector $1, or nothing.
