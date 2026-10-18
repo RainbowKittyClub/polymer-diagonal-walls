@@ -5,7 +5,7 @@ import java.util.List;
 import eu.pb4.polymer.virtualentity.api.ElementHolder;
 import eu.pb4.polymer.virtualentity.api.attachment.ChunkAttachment;
 import eu.pb4.polymer.virtualentity.api.attachment.HolderAttachment;
-import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.BlockDisplayElement;
 import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
 import org.jspecify.annotations.Nullable;
 
@@ -33,7 +33,8 @@ public final class ArmHolder extends ElementHolder {
     /**
      * Builds every arm's elements around {@code origin}, the position the holder attaches at.
      *
-     * @param viewRange each display's view range, in units of 64 blocks
+     * @param viewRange each block display's view range, in units of 64 blocks; item-display arms
+     *     keep the range of the overlay they meet
      */
     public ArmHolder(List<Diagonal> diagonals, Vec3 origin, float viewRange) {
         this.diagonals = List.copyOf(diagonals);
@@ -56,7 +57,7 @@ public final class ArmHolder extends ElementHolder {
     }
 
     /**
-     * Sets every display's view range and sends it to the current watchers.
+     * Sets every block display's view range and sends it to the current watchers.
      *
      * @param viewRange the view range, in units of 64 blocks
      */
@@ -90,10 +91,10 @@ public final class ArmHolder extends ElementHolder {
         }
     }
 
-    // Sets the view range on every display element, sending nothing.
+    // Sets the view range on every block display, sending nothing.
     private void applyViewRange(float viewRange) {
         for (VirtualElement element : getElements()) {
-            if (element instanceof DisplayElement display) {
+            if (element instanceof BlockDisplayElement display) {
                 display.setViewRange(viewRange);
             }
         }
