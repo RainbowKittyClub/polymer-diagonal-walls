@@ -26,11 +26,12 @@ import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalRule;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
 
 /**
- * Keeps arms in step with the world. Block changes and chunk loads and unloads only mark
- * positions, from whatever thread raised them; each level's end of tick drains the marks into
- * {@link ArmIndex} on the server thread, within a time budget: what is left waits for the next
- * tick. Nothing here reads another chunk while a block is being set, or touches level storage from
- * a chunk event, which can fire inside a level's constructor.
+ * Keeps arms in step with the world. Block changes, members' random ticks and chunk loads and
+ * unloads only mark positions, from whatever thread raised them; each level's end of tick adds the
+ * owners a sweep of indexed holders finds stale, then drains the marks into {@link ArmIndex} on
+ * the server thread, within a time budget: what is left waits for the next tick. Nothing here
+ * reads another chunk while a block is being set, or touches level storage from a chunk event,
+ * which can fire inside a level's constructor.
  */
 public final class ArmUpdates {
     // Drains a loaded chunk may wait for getChunkNow to return it before it is given up.
@@ -54,8 +55,14 @@ public final class ArmUpdates {
         ServerChunkEvents.CHUNK_UNLOAD.register(
                 (level, chunk) -> pending(level).markUnloaded(chunk.getPos().pack()));
         ServerTickEvents.END_LEVEL_TICK.register(ArmUpdates::drain);
-        ServerLevelEvents.UNLOAD.register((server, level) -> PENDING.remove(level));
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> PENDING.clear());
+        ServerLevelEvents.UNLOAD.register((server, level) -> {
+            PENDING.remove(level);
+            IndexSweep.forget(level);
+        });
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            PENDING.clear();
+            IndexSweep.clear();
+        });
     }
 
     /**
@@ -81,6 +88,17 @@ public final class ArmUpdates {
         }
     }
 
+    /**
+     * Marks {@code pos} for the same refresh as a block change there when {@code state} takes
+     * diagonals: the random-tick fallback for writes that never reach
+     * {@code LevelChunk.setBlockState}. Safe from any thread.
+     */
+    public static void recheck(ServerLevel level, BlockPos pos, BlockState state) {
+        if (DiagonalRule.isDiagonalBlock(state)) {
+            pending(level).markBlock(pos.asLong());
+        }
+    }
+
     // Marks a chunk that becomes readable again: one dropped below FULL keeps its completed
     // future, so coming back raises no CHUNK_LOAD.
     private static void statusChanged(ServerLevel level, LevelChunk chunk,
@@ -96,11 +114,13 @@ public final class ArmUpdates {
         return PENDING.computeIfAbsent(level, key -> new PendingChanges());
     }
 
-    // Forgets unloaded chunks first, so a chunk that unloaded and loaded again is rebuilt. Then
-    // refreshes the owners an earlier drain left, every marked block as an owner, plus the two
-    // positions that may own a diagonal ending there, and last every member of each loaded chunk,
-    // each once however often it was marked. Past the budget, the rest is queued again.
+    // Marks the holders IndexSweep finds stale. Then forgets unloaded chunks, so a chunk that
+    // unloaded and loaded again is rebuilt, and refreshes the owners an earlier drain left, every
+    // marked block as an owner, plus the two positions that may own a diagonal ending there, and
+    // last every member of each loaded chunk, each once however often it was marked. Past the
+    // budget, the rest is queued again.
     private static void drain(ServerLevel level) {
+        IndexSweep.sweep(level, owner -> pending(level).markBlock(owner));
         PendingChanges pending = PENDING.get(level);
         Batch batch = pending == null ? null : pending.take();
         if (batch == null) {

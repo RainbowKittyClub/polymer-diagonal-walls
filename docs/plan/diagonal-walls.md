@@ -884,7 +884,7 @@ calls its API at runtime. After a dev-server restart the served pack carried the
 user rejoined in the Kalic0 client, walked into the diagonals, and reported on 2026-10-18 that "the
 sound is better".
 
-## S17 — Axiom edits — **planned**
+## S17 — Axiom edits — **in progress**
 
 **Build.** Axiom 6.0.3 writes nearly all of its edits straight into the chunk section, so neither
 the S4 hook nor any vanilla update sees them. That covers pastes, fills, every tool, and undo and
@@ -910,9 +910,22 @@ differs from the new one, call `ArmUpdates.blockChanged`:
 Keep `require` at its default, so a moved call fails loudly at boot. Fix `LevelChunkMixin`'s
 comment, which says every block write on a loaded chunk ends there.
 
+Add a fallback for any other tool that writes past `LevelChunk.setBlockState`. Mixins on
+`WallBlock` and `CrossCollisionBlock` make every state random-tick (`BlockBehaviour.java:401`,
+cached per state by `initCache` at `:504`). Their added `randomTick` marks the position the way a
+block change does; the inherited one at `:343` is empty. A section that random-ticks gets
+`random_tick_speed` random positions per tick (default 3, `GameRules.java:74`;
+`ServerLevel.java:514–523`). That checks each block about every 4096 / 3 ≈ 1365 ticks, about
+68 s, in chunks a player simulates. A subclass's own overrides must keep working. A diagonal whose
+two ends were both removed leaves nothing to tick, so the drain also re-checks the index in round
+robin: a fixed number of holders per tick, each refreshed when an end no longer holds its recorded
+state.
+
 **Done when.** With Axiom in `run/mods`, the user builds, pastes, fills and undoes walls, fences
 and panes with Axiom's tools. Arms appear and go within a tick each time. The dev server boots with
-0 mixin failures both with Axiom and without it.
+0 mixin failures both with Axiom and without it. A diagonal pair written straight into its section
+gains its arm after a random tick of either end, and clearing both ends that way drops the arm
+within one pass of the re-check.
 
 ## S18 — Fence arms without the corner post — **in progress**
 
