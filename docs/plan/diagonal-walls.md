@@ -2,7 +2,7 @@
 
 A server-side Fabric mod, `polymerdiagonalwalls`, that joins two walls, fences or panes standing
 corner to corner with a diagonal arm drawn by Polymer block display entities. Each arm gets
-invisible, client-only shulker columns that a vanilla client collides with, plus tiny slimes that
+invisible, client-only shulker columns that a vanilla client collides with, plus tiny frogs that
 ease players along it. Every other entity gets server-side collision boxes, so a vanilla client sees
 and bumps into every diagonal with no mod or pack installed.
 
@@ -57,6 +57,15 @@ two columns cover exactly S7's server-side corner boxes, so the client and the s
 shape. Two traps shape S11: a shulker snaps to the block centre unless it rides something
 (`Shulker.java:329`), and it closes its lid whenever its block position changes after its first
 tick (`:337`).
+
+**The mobs that push players along the arm must be allowed in Peaceful, so they are frogs, not
+slimes.** A client builds each added entity through `EntityType.create`, which returns null for a
+type built `notInPeaceful()` while the client's level is on Peaceful (`EntityType.java:298`,
+`:307`). `ClientPacketListener.java:582` then logs "Skipping Entity" and drops it, virtual entity
+or not. Slimes are such a type (`EntityTypes.java:862`), so no client on a Peaceful world, the
+lobby included, ever got S12's slimes; the user's client log on the Peaceful dev world held that
+line. A frog (`EntityTypes.java:464`) is allowed there, pushes the same way as a passenger, and
+does nothing else on the client that an invisible, silent rider would show.
 
 **No block state changes, so the mod needs no Polymer block, no registry entry and no
 migration.** Every diagonal endpoint already raises its post: `shouldRaisePost` returns true for
@@ -709,6 +718,14 @@ own squares, so by the geometry a player's box never overlaps them and they push
 centred on the corner point would. The comparison with S12 off needs a build without slimes and
 wasn't run. In the user's in-world pass on 2026-10-18 everything looked good.
 
+Later the slimes turned out never to reach a client on a Peaceful world, which refuses them (see
+"Findings that reshape the work"). `collision/GroundPushers` now seats frogs, 0.5 wide, scaled to
+the same widths: 0.375 for walls and fences, 0.4375 for panes. A seated frog pushes as the slime
+did, through `ClientLevel.java:487` → `rideTick` → `tick` → `aiStep` → `pushEntities`
+(`LivingEntity.java:3150`), with no override on the way. Otherwise a client frog only animates its
+model, and a silent one plays no sound (`Entity.java:1501`). Presence Footsteps 1.13.3 maps frogs
+to `BIPED` but skips every passenger.
+
 ## S13 — Mob collision for fences and panes — **done**
 
 **Build.** Extend S7's mixin to `CrossCollisionBlock.getCollisionShape`
@@ -1135,7 +1152,7 @@ Settled with the user on 2026-10-18, after the in-world pass:
 - **Holders per owner:** keep one holder per owner, and fix the cost in the RKC Polymer fork (S19).
 - **Lobby:** install on both survival and the lobby (S21).
 - **Rabbits:** walls get fences' exemption from `MoveControl`'s in-block jump (S20).
-- **Wall slimes:** 0.375 wide, centred on each 0.25 wall column. The first ones were the
+- **Wall pushers:** 0.375 wide, centred on each 0.25 wall column. The first ones were the
   columns' own size, which a player can never enter, so they pushed no one.
 - **Existing walls:** arms come from the blocks on every chunk load. Existing builds and generated
   structures join diagonally too, and nothing is stored.
@@ -1240,7 +1257,8 @@ Behaviour seen in the spike:
 - The server re-centres a growing shulker box (`Entity.java:3397`), which closed the lids of
   shulkers resting on whole-number y. That code is server-only, so it doesn't apply to virtual
   shulkers.
-- Real slimes need a difficulty above Peaceful (`EntityTypes.java:862`); virtual ones don't.
+- Slimes need a difficulty above Peaceful (`EntityTypes.java:862`), virtual ones included, since
+  the client refuses them too (see "Findings that reshape the work").
 - The crosshair stops on the columns, as a vanilla fence's outline does, but a click there is an
   entity click, so the fence can't be mined through a column.
 
@@ -1382,7 +1400,7 @@ survival. One bot is the only player. `tick query`'s P99 is the slowest of its l
 | Teleport out: worst tick | 48.4–85.3 ms (see "Holders per owner") | 13.9–17.3 ms |
 | Diagonals in collision range at the centre | 192 | 192 |
 | Entities the bot is sent | 65,025 arms + 3,072 column entities | 3,969 + 4,224 |
-| Per diagonal in collision range | 17: 6 shulkers, 2 slimes, 8 vehicles, the arm | 23: 9, 2, 11, the arm |
+| Per diagonal in collision range | 17: 6 shulkers, 2 frogs, 8 vehicles, the arm | 23: 9, 2, 11, the arm |
 
 Uncapped, the one slow arrival tick spent 46 of its 53 sampled ms in `ArmUpdates.drain`. With the
 budget, no tick over 50 ms was sampled on any arrival. One more capped run read 99.9 ms, but its
