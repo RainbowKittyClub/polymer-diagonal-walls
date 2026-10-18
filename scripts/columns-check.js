@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict'
-// Checks S11's and S12's client collision for wall diagonals from one mineflayer bot's side: which
-// shulkers, slimes and empty vehicle displays it is sent, where, on what, at what scale and peek,
-// and when they come and go as it moves around layouts A, F and G. It cannot tell whether they
-// block; that is the user's check in a vanilla client. Needs the dev server up with
+// Checks S11's and S12's client collision from one mineflayer bot's side: which shulkers, slimes
+// and empty vehicle displays it is sent, where, on what, at what scale and peek, and when they come
+// and go as it moves around wall layouts A, F and G, fence layouts H and L and pane layout J. It
+// cannot tell whether they block; that is the user's check in a vanilla client. Needs the dev server up with
 // `scripts/layouts.sh build` done, and ViaFabric + ViaBackwards in run/mods. It borrows
 // mineflayer and the helpers of the workspace's scripts/loadtest (`npm install` there once). Run
 // with the sandbox off: RCON and the bot use loopback.
@@ -38,13 +38,17 @@ const { fixResourcePackReplies } = load('./lib/flyer')
 
 const BOT = 'cwA'
 const Y = -53
-// WallFamily's layout: column and slime centres from the corner point, three 0.5-tall shulkers.
-const OFFSETS = [-0.125, 0.125]
-const SHULKERS_PER_COLUMN = 3
-const SHULKER_STEP = 0.5
-const SHULKER_SCALE = 0.25
-const SLIME_SCALE = 0.25 / 0.52
-const PER_DIAGONAL = { shulker: 6, slime: 2, vehicle: 8 }
+const OPEN_PEEK = 100
+// Mth.sin's table steps per radian.
+const SIN_SCALE = 10430.378350470453
+// Each family's layout, as its *Family class gives it: column and slime centres from the corner
+// point, column width and stack, the height a column must reach and the slime width.
+const FAMILIES = {
+  wall: family('WallFamily', [-0.125, 0.125], 0.25, 3, 1.5, [-0.125, 0.125], 0.25),
+  fence: family('FenceFamily', [-0.25, 0, 0.25], 0.25, 3, 1.5, [-0.1875, 0.1875], 0.375),
+  pane: family('PaneFamily', [-0.328125, -0.109375, 0.109375, 0.328125], 0.21875, 3, 1.0,
+    [-0.21875, 0.21875], 0.4375)
+}
 // Metadata indices as 26.1 numbers them (minecraft-data metadataKeys).
 const SHARED_FLAGS = 0
 const SILENT = 4
@@ -68,6 +72,16 @@ const G_LIST = [
   ...[0, 1, 2, 3].map(i => ({ x: 135 - i, z: 107 - i, dz: 1 }))
 ]
 const G_DIAGONALS = G_LIST.length
+// Layout H, a fence pair, and J, a pane pair, both running south-east to their corner point.
+const H = { x: 144, z: 100, dz: 1 }
+const H_CORNER = { x: 145, z: 101 }
+const J = { x: 164, z: 100, dz: 1 }
+const J_CORNER = { x: 165, z: 101 }
+// Pen L is pen G in oak fences, 44 blocks east.
+const L_CENTRE = { x: 180.5, z: 104.5 }
+const L_LIST = G_LIST.map(d => ({ x: d.x + 44, z: d.z, dz: d.dz }))
+// Around one corner point, only that diagonal's entities: the next one's lie 1.06 or more away.
+const ONE = 1
 // ColumnRange: admit within 8, release past 10, rechecked once a second.
 const ADMIT = 8
 const RELEASE = 10
@@ -88,7 +102,7 @@ async function main () {
   const logFile = path.join(server.runDir, 'logs', 'latest.log')
   const failedBefore = countFailedPackets(logFile)
 
-  // Arms, and so column sites, appear only through a rebuild until S4 and S5.
+  // Column sites ride the arms, which a rebuild brings in line with the layouts.
   await cmd('execute positioned 140 -53 104 run diagonals rebuild 64')
   let bot = await join(server)
   try {
@@ -116,15 +130,15 @@ async function main () {
     const arrivalMs = await until(() => near(bot, A_ORIGIN, 4).riders.length >= 8, RECHECK_MS * 2.5)
     const inA = near(bot, A_ORIGIN, 4)
     record('near: 5.5 blocks from A, its 6 shulkers, 2 slimes and 8 vehicles arrive within a recheck',
-      arrivalMs != null && arrivalMs - mark <= RECHECK_MS + 500 && counts(inA, 1),
+      arrivalMs != null && arrivalMs - mark <= RECHECK_MS + 500 && counts(inA, 1, FAMILIES.wall),
       `${arrivalMs == null ? 'never' : `${arrivalMs - mark} ms`}; ${describe(inA)}`)
-    checkLayout('A', inA, [A])
+    checkLayout('A', inA, [A], FAMILIES.wall)
 
     // Hysteresis: back to the edge keeps them.
     await tp(A_ORIGIN.x, A_ORIGIN.z + ADMIT + 1)
     await sleep(RECHECK_MS * 2.5)
     record(`hold: moving out to ${ADMIT + 1} blocks keeps every column`,
-      counts(near(bot, A_ORIGIN, 4), 1), describe(near(bot, A_ORIGIN, 4)))
+      counts(near(bot, A_ORIGIN, 4), 1, FAMILIES.wall), describe(near(bot, A_ORIGIN, 4)))
 
     // Debug toggle: invisibility clears on every rider, then comes back.
     await cmd('diagonals debug columns')
@@ -153,25 +167,54 @@ async function main () {
     mark = Date.now()
     const rejoinMs = await until(() => near(bot, A_ORIGIN, 4).riders.length >= 8, RECHECK_MS * 3)
     record('relog: rejoining 5.5 blocks from A gets its columns back',
-      rejoinMs != null && counts(near(bot, A_ORIGIN, 4), 1),
+      rejoinMs != null && counts(near(bot, A_ORIGIN, 4), 1, FAMILIES.wall),
       `${rejoinMs == null ? 'never' : `${rejoinMs - mark} ms after spawn`}; ` +
       describe(near(bot, A_ORIGIN, 4)))
-    checkLayout('A after relog', near(bot, A_ORIGIN, 4), [A])
+    checkLayout('A after relog', near(bot, A_ORIGIN, 4), [A], FAMILIES.wall)
 
     // Pen G: sixteen diagonals.
     await tp(G_CENTRE.x, G_CENTRE.z)
     await until(() => near(bot, G_CENTRE, 6).riders.length >= G_DIAGONALS * 8, RECHECK_MS * 3)
     const inG = near(bot, G_CENTRE, 6)
     record(`pen G: from its centre the bot holds ${G_DIAGONALS} diagonals' columns, slimes and vehicles`,
-      counts(inG, G_DIAGONALS), describe(inG))
-    checkLayout('G', inG, G_LIST)
+      counts(inG, G_DIAGONALS, FAMILIES.wall), describe(inG))
+    checkLayout('G', inG, G_LIST, FAMILIES.wall)
 
     // Layout F: north-east, its columns standing in the partner's chunk.
     await tp(F_ORIGIN.x, F_ORIGIN.z + 5)
     await until(() => near(bot, F_ORIGIN, 4).riders.length >= 8, RECHECK_MS * 3)
     const inF = near(bot, F_ORIGIN, 4)
-    record('F: 5 blocks from the chunk-border pair, its columns arrive', counts(inF, 1), describe(inF))
-    checkLayout('F', inF, [F])
+    record('F: 5 blocks from the chunk-border pair, its columns arrive',
+      counts(inF, 1, FAMILIES.wall), describe(inF))
+    checkLayout('F', inF, [F], FAMILIES.wall)
+
+    // Fences: pair H, then pen L's sixteen.
+    await tp(H.x + 0.5, H.z + 5.5)
+    await until(() => near(bot, H_CORNER, ONE).riders.length >= FAMILIES.fence.riders, RECHECK_MS * 3)
+    const inH = near(bot, H_CORNER, ONE)
+    record(`H: 5 blocks from the fence pair, its ${FAMILIES.fence.perDiagonal.shulker} shulkers, ` +
+      '2 slimes and their vehicles arrive', counts(inH, 1, FAMILIES.fence), describe(inH))
+    checkLayout('H', inH, [H], FAMILIES.fence)
+    await tp(L_CENTRE.x, L_CENTRE.z)
+    await until(() => near(bot, L_CENTRE, 6).riders.length >= G_DIAGONALS * FAMILIES.fence.riders,
+      RECHECK_MS * 3)
+    const inL = near(bot, L_CENTRE, 6)
+    record(`pen L: from its centre the bot holds ${L_LIST.length} fence diagonals' columns, slimes and vehicles`,
+      counts(inL, L_LIST.length, FAMILIES.fence), describe(inL))
+    checkLayout('L', inL, L_LIST, FAMILIES.fence)
+
+    // Panes: pair J, lids open only as far as a pane is tall.
+    const pane = FAMILIES.pane
+    record(`pane lids: peek ${pane.peek} is the lowest whose ${pane.perColumn}-stack reaches ${pane.height}`,
+      pane.peek < OPEN_PEEK && pane.perColumn * shulkerHeight(pane.width, pane.peek) >= pane.height &&
+        pane.perColumn * shulkerHeight(pane.width, pane.peek - 1) < pane.height,
+      `stack ${pane.perColumn * pane.step}`)
+    await tp(J.x + 0.5, J.z + 5.5)
+    await until(() => near(bot, J_CORNER, ONE).riders.length >= pane.riders, RECHECK_MS * 3)
+    const inJ = near(bot, J_CORNER, ONE)
+    record(`J: 5 blocks from the pane pair, its ${pane.perDiagonal.shulker} shulkers, 2 slimes and ` +
+      'their vehicles arrive', counts(inJ, 1, pane), describe(inJ))
+    checkLayout('J', inJ, [J], pane)
 
     // A 2000-block trip and back.
     await tp(G_CENTRE.x + 2000, G_CENTRE.z)
@@ -181,8 +224,9 @@ async function main () {
     await until(() => near(bot, G_CENTRE, 6).riders.length >= G_DIAGONALS * 8, RECHECK_MS * 4)
     const back = near(bot, G_CENTRE, 6)
     record('trip: 2000 blocks away G\'s columns go, and back at G they all return',
-      away.riders.length === 0 && counts(back, G_DIAGONALS), `away ${describe(away)}; back ${describe(back)}`)
-    checkPairs('G after the trip', back)
+      away.riders.length === 0 && counts(back, G_DIAGONALS, FAMILIES.wall),
+      `away ${describe(away)}; back ${describe(back)}`)
+    checkPairs('G after the trip', back, FAMILIES.wall)
   } finally {
     await quit(bot)
   }
@@ -199,36 +243,36 @@ async function main () {
   console.log(`\n${results.length - fails}/${results.length} passed`)
   process.exitCode = fails === 0 ? 0 : 1
 
-  // Each expected seat of a wall diagonal, from WallFamily's numbers.
-  function seatsOf ({ x, z, dz }) {
+  // Each expected seat of one diagonal, from its family's numbers.
+  function seatsOf ({ x, z, dz }, fam) {
     const corner = { x: x + 1, z: z + (dz > 0 ? 1 : 0) }
     const shulkers = []
     const slimes = []
-    for (const t of OFFSETS) {
+    for (const t of fam.offsets) {
       const bx = corner.x + t
       const bz = corner.z + dz * t
-      for (let k = 0; k < SHULKERS_PER_COLUMN; k++) shulkers.push({ x: bx, y: Y + k * SHULKER_STEP, z: bz })
-      slimes.push({ x: bx, y: Y, z: bz })
+      for (let k = 0; k < fam.perColumn; k++) shulkers.push({ x: bx, y: Y + k * fam.step, z: bz })
     }
+    for (const t of fam.slimeOffsets) slimes.push({ x: corner.x + t, y: Y, z: corner.z + dz * t })
     return { shulkers, slimes }
   }
 
-  // Every vehicle carries one rider spawned where WallFamily puts it, at the right scale and data.
-  function checkLayout (label, seen, diagonals) {
-    const want = diagonals.map(seatsOf)
+  // Every vehicle carries one rider spawned where the family puts it, at the right scale and data.
+  function checkLayout (label, seen, diagonals, fam) {
+    const want = diagonals.map(d => seatsOf(d, fam))
     const wantShulkers = want.flatMap(w => w.shulkers)
     const wantSlimes = want.flatMap(w => w.slimes)
     const vehicleAt = (seat, kind) => seen.vehicles.find(v => same(v, seat) && riderOf(v)?.name === kind)
     const shulkerSeats = wantShulkers.filter(seat => vehicleAt(seat, 'shulker') != null).length
     const slimeSeats = wantSlimes.filter(seat => vehicleAt(seat, 'slime') != null).length
-    record(`${label}: every shulker and slime rides a vehicle at its WallFamily seat`,
+    record(`${label}: every shulker and slime rides a vehicle at its ${fam.name} seat`,
       shulkerSeats === wantShulkers.length && slimeSeats === wantSlimes.length,
       `shulker seats ${shulkerSeats}/${wantShulkers.length}, slime seats ${slimeSeats}/${wantSlimes.length}`)
-    checkPairs(label, seen)
+    checkPairs(label, seen, fam)
   }
 
   // Spawn points, scale, peek and flags of every rider, read against its vehicle.
-  function checkPairs (label, seen) {
+  function checkPairs (label, seen, fam) {
     let spawnOk = 0
     let scaleOk = 0
     let dataOk = 0
@@ -243,15 +287,16 @@ async function main () {
       if (near1(rider.x, vehicle.x) && near1(rider.z, vehicle.z) && near1(rider.y, vehicle.y - drop)) spawnOk++
       else bad.push(`${rider.name} ${rider.id} spawned ${fmt(rider)} under ${fmt(vehicle)}`)
       const scale = Object.keys(rider.attrs).length === 1 ? rider.attrs[SCALE_KEY] : undefined
-      const wantScale = rider.name === 'shulker' ? SHULKER_SCALE : SLIME_SCALE
+      const wantScale = rider.name === 'shulker' ? fam.shulkerScale : fam.slimeScale
       if (scale != null && Math.abs(scale - wantScale) < 1e-6) scaleOk++
       else bad.push(`${rider.name} ${rider.id} scale ${scale}`)
-      const peekOk = rider.name !== 'shulker' || rider.meta[SHULKER_PEEK] === 100
+      const peekOk = rider.name !== 'shulker' || rider.meta[SHULKER_PEEK] === fam.peek
       if (peekOk && invisible(rider) && rider.meta[SILENT] === true) dataOk++
       else bad.push(`${rider.name} ${rider.id} meta ${JSON.stringify(rider.meta)}`)
     }
     const n = seen.vehicles.length
-    record(`${label}: each rider spawns at its seat (shulkers 0.5 below), scale 0.25 wide, invisible, silent, shulkers peek 100`,
+    record(`${label}: each rider spawns at its seat (shulkers 0.5 below), at ${fam.name} scale, ` +
+      `invisible, silent, shulkers peek ${fam.peek}`,
       n > 0 && spawnOk === n && scaleOk === n && dataOk === n,
       `${n} vehicles: spawn ${spawnOk}, scale ${scaleOk}, data ${dataOk}${bad.length ? `; ${bad.slice(0, 3).join('; ')}` : ''}`)
   }
@@ -274,10 +319,44 @@ function near (bot, centre, r) {
   }
 }
 
-function counts (seen, diagonals) {
-  return seen.shulkers.length === PER_DIAGONAL.shulker * diagonals &&
-    seen.slimes.length === PER_DIAGONAL.slime * diagonals &&
-    seen.vehicles.length === PER_DIAGONAL.vehicle * diagonals
+function counts (seen, diagonals, fam) {
+  return seen.shulkers.length === fam.perDiagonal.shulker * diagonals &&
+    seen.slimes.length === fam.perDiagonal.slime * diagonals &&
+    seen.vehicles.length === fam.perDiagonal.vehicle * diagonals
+}
+
+// One family's expected layout, with the lid peek and seat step the client works out.
+function family (name, offsets, width, perColumn, height, slimeOffsets, slimeWidth) {
+  let peek = 0
+  while (peek < OPEN_PEEK && perColumn * shulkerHeight(width, peek) < height) peek++
+  const shulkers = offsets.length * perColumn
+  return {
+    name,
+    offsets,
+    width,
+    perColumn,
+    height,
+    slimeOffsets,
+    peek,
+    step: shulkerHeight(width, peek),
+    shulkerScale: width,
+    slimeScale: slimeWidth / 0.52,
+    riders: shulkers + slimeOffsets.length,
+    perDiagonal: { shulker: shulkers, slime: slimeOffsets.length, vehicle: shulkers + slimeOffsets.length }
+  }
+}
+
+// A shulker's box height at a raw peek, in the client's float steps (Shulker.java:207, :264, and
+// Mth.sin's 65536-entry table).
+function shulkerHeight (width, peek) {
+  const f = Math.fround
+  const size = f(width)
+  const amount = f(peek * f(0.01))
+  const angle = f(f(0.5 + amount) * f(Math.PI))
+  const index = Math.trunc(angle * SIN_SCALE) % 65536
+  const sin = f(Math.sin(index / SIN_SCALE))
+  const physical = f(0.5 - f(sin * 0.5))
+  return size + physical * size
 }
 
 function describe (seen) {
