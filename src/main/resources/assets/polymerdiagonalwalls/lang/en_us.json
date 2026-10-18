@@ -1,4 +1,7 @@
 {
+  "commands.polymerdiagonalwalls.debug.seal.on": "Diagonal gaps are sealed for non-players, and pathfinding avoids them",
+  "commands.polymerdiagonalwalls.debug.seal.boxes": "Diagonal gaps are sealed for non-players, but pathfinding still routes through them",
+  "commands.polymerdiagonalwalls.debug.seal.off": "Diagonal gaps are open to everyone, as in vanilla",
   "commands.polymerdiagonalwalls.probe.unloaded": "%s, %s, %s is not loaded",
   "commands.polymerdiagonalwalls.probe.not_member": "%s at %s, %s, %s takes no diagonals",
   "commands.polymerdiagonalwalls.probe.owns_none": "%s at %s, %s, %s owns no diagonals",

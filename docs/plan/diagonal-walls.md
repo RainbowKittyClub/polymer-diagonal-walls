@@ -412,7 +412,7 @@ exactly on the post top, z-fighting where the arm end sits inside the post. Lift
   arms.
 - Breaking the upper wall drops the lower arm to low within a tick.
 
-## S7 — Solid gap for non-players — **planned**
+## S7 — Solid gap for non-players — **in progress**
 
 **Build.** `mixin/WallBlockMixin` hooks `WallBlock.getCollisionShape(BlockState, BlockGetter,
 BlockPos, CollisionContext)` (`WallBlock.java:96`) at `RETURN`. It applies when the context is an
@@ -437,7 +437,7 @@ walls; the legs below run with Lithium installed to settle that.
 3. An arrow shot into a gap hits the corner.
 4. A mineflayer bot walks into the corner where the box sits, and the log shows no `moved wrongly`.
 
-## S8 — Pathfinding stops routing through sealed gaps — **planned**
+## S8 — Pathfinding stops routing through sealed gaps — **in progress**
 
 **Build.** `mixin/WalkNodeEvaluatorMixin` hooks `isDiagonalValid(Node, Node, Node)`
 (`WalkNodeEvaluator.java:167`) at `HEAD`, cancellable. When both side nodes are `FENCE` and
@@ -676,6 +676,13 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
   `minecraft:block/<wood>_fence_side`. Survival requires the pack, so that reaches every survival
   player. Settled by the user's look at layout H.
 - **Lobby install.** The lobby is a void world. Settled by the user before S16.
+- **Rabbits over a sealed diagonal.** A rabbit that bumps into something jumps 1.71 high, or 2.25
+  from a standstill (`Rabbit.java:153`, `:167`). It lands on a post or a corner box at 1.5 and hops
+  down on the far side. In S7's sealed pen G, every chicken, baby cow and cat stayed through
+  `tick sprint 24000`, and all 5 rabbits got out. A straight 5×5 wall ring kept 10 of 10 rabbits
+  through the same sprint. Corner boxes 2.5 tall cut the losses from about 2.5 to 1 of 10 rabbits
+  per 3000 ticks, because the posts are still perches. Default: keep the boxes at post height and
+  leave rabbits out of S7's pass count. Settled by the user.
 
 ## Reference: Wall geometry
 
