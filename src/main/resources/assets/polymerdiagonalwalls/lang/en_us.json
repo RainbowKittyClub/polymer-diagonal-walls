@@ -1,2 +1,8 @@
 {
+  "commands.polymerdiagonalwalls.probe.unloaded": "%s, %s, %s is not loaded",
+  "commands.polymerdiagonalwalls.probe.not_member": "%s at %s, %s, %s takes no diagonals",
+  "commands.polymerdiagonalwalls.probe.owns_none": "%s at %s, %s, %s owns no diagonals",
+  "commands.polymerdiagonalwalls.probe.owns": "%s at %s, %s, %s owns %s:",
+  "commands.polymerdiagonalwalls.probe.south_east": "south-east to %s at %s, %s, %s",
+  "commands.polymerdiagonalwalls.probe.north_east": "north-east to %s at %s, %s, %s"
 }
