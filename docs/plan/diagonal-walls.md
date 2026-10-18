@@ -884,7 +884,7 @@ calls its API at runtime. After a dev-server restart the served pack carried the
 user rejoined in the Kalic0 client, walked into the diagonals, and reported on 2026-10-18 that "the
 sound is better".
 
-## S17 — Axiom edits — **planned**
+## S17 — Axiom edits — **in progress**
 
 **Build.** Axiom 6.0.3 writes nearly all of its edits straight into the chunk section, so neither
 the S4 hook nor any vanilla update sees them. That covers pastes, fills, every tool, and undo and
