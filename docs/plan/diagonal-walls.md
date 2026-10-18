@@ -661,7 +661,7 @@ Enderscape veiled fence and `shadoline_bars`. Each one:
 - meets the mod's overlay without a seam, and a modded fence arm shows no corner post;
 - blocks a player at every scale, as S11 does for vanilla blocks.
 
-## S15 — Load and editor check — **planned**
+## S15 — Load and editor check — **in progress**
 
 **Build.** Nothing new unless the numbers ask for it. The stress layout is a checkerboard of walls
 16 chunks square: every wall has four diagonal partners, so each owns two arms, which comes to 256
