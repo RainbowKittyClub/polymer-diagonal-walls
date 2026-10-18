@@ -25,6 +25,12 @@
 #   scripts/layouts.sh modded sweep        # every modded wall, fence and bars in run/mods as a pair
 #   scripts/layouts.sh modded clear        # empty the row again, so stats and drawn see A-R only
 #
+# S15's load lattices, a checkerboard of one block in one layer, so every block owns two arms:
+#
+#   scripts/layouts.sh lattice build <wall|fence>   # force, clear and build it, then unforce it
+#   scripts/layouts.sh lattice clear <wall|fence>   # force, empty and unforce it again
+#   scripts/layouts.sh lattice expect <wall|fence>  # its origin, size, block, holders and arms
+#
 # MOD_DIR (default: this checkout) picks the dev server. Every layout stands on the seeded flat
 # world's surface, y=-53, in the chunk row z 96..111 at x >= 100, away from spawn.
 set -uo pipefail
@@ -392,7 +398,7 @@ cmd_f_split() {
 install_pack() {
     local pack="$MOD_DIR/run/world/datapacks/pdwtest"
     local fn="$pack/data/pdwtest/function"
-    [[ -f "$fn/sample.mcfunction" ]] && return 0
+    [[ -f "$fn/watch_sample.mcfunction" ]] && return 0
     mkdir -p "$fn"
     printf '%s\n' '{"pack":{"description":"diagonal-walls tick sampling",' \
         '"min_format":[107,1],"max_format":107}}' | tr -d '\n' >"$pack/pack.mcmeta"
@@ -412,6 +418,22 @@ EOF
 scoreboard players add #n pdwtest 1
 function pdwtest:take
 execute if score #n pdwtest matches ..6 run schedule function pdwtest:sample 1t replace
+EOF
+    # Args: x, y, z. As timed, but for a change made elsewhere: 40 samples, one per tick.
+    cat >"$fn/watch.mcfunction" <<'EOF'
+scoreboard objectives add pdwtest dummy
+data modify storage pdwtest:t arms set value []
+data modify storage pdwtest:t walls set value []
+$data modify storage pdwtest:t pos set value {x:$(x),y:$(y),z:$(z)}
+execute store result storage pdwtest:t start int 1 run diagonals stats
+scoreboard players set #n pdwtest 0
+function pdwtest:take
+schedule function pdwtest:watch_sample 1t replace
+EOF
+    cat >"$fn/watch_sample.mcfunction" <<'EOF'
+scoreboard players add #n pdwtest 1
+function pdwtest:take
+execute if score #n pdwtest matches ..39 run schedule function pdwtest:watch_sample 1t replace
 EOF
     cat >"$fn/take.mcfunction" <<'EOF'
 data modify storage pdwtest:t arms append value 0
@@ -756,6 +778,67 @@ cmd_modded_check() {
     return $failed
 }
 
+# S15's lattices: origin x and z, side in blocks, block. The wall one is chunks 32..47 square, the
+# fence one chunks 64..67 by 32..35; neither is in sight of the other at view distance 10.
+declare -A LATTICE
+LATTICE[wall]="512 512 256 cobblestone_wall"
+LATTICE[fence]="1024 512 64 oak_fence"
+
+# Prints "x0 z0 size block" for lattice $1, or fails for an unknown name.
+lattice_of() {
+    [[ -n "${LATTICE[${1:-}]:-}" ]] || { echo "usage: lattice <build|clear|expect> <wall|fence>" >&2
+        return 1; }
+    echo "${LATTICE[$1]}"
+}
+
+# Holders and arms a lattice of side n draws: every block west of the east edge owns one or two,
+# (n-1)^2 diagonals in all.
+cmd_lattice_expect() {
+    local x0 z0 n block
+    read -r x0 z0 n block < <(lattice_of "$1") || return 1
+    echo "$1 lattice: $block from $x0 $z0, $n square, $((n * n / 2)) blocks," \
+        "$((n * n / 2 - n / 2)) holders, $(((n - 1) * (n - 1))) arms"
+}
+
+# One block at the corner and one diagonal to it make a 2x2 cell, which clones double along x
+# and then z; max_block_modifications is raised so the clear and the last clone fit.
+cmd_lattice_build() {
+    local x0 z0 n block x1 z1 w out
+    read -r x0 z0 n block < <(lattice_of "$1") || return 1
+    x1=$((x0 + n - 1))
+    z1=$((z0 + n - 1))
+    rc "gamerule max_block_modifications 1000000" >/dev/null
+    rc "forceload add $x0 $z0 $x1 $z1" >/dev/null
+    rc "fill $x0 $Y $z0 $x1 $((Y + 1)) $z1 air" >/dev/null
+    rc "setblock $x0 $Y $z0 minecraft:$block" >/dev/null
+    rc "setblock $((x0 + 1)) $Y $((z0 + 1)) minecraft:$block" >/dev/null
+    for ((w = 2; w < n; w *= 2)); do
+        out="$(rc "clone $x0 $Y $z0 $((x0 + w - 1)) $Y $((z0 + 1)) $((x0 + w)) $Y $z0")"
+        [[ "$out" == *cloned* ]] || { echo "FAIL clone along x at $w: $out"; return 1; }
+    done
+    for ((w = 2; w < n; w *= 2)); do
+        out="$(rc "clone $x0 $Y $z0 $x1 $Y $((z0 + w - 1)) $x0 $Y $((z0 + w))")"
+        [[ "$out" == *cloned* ]] || { echo "FAIL clone along z at $w: $out"; return 1; }
+    done
+    sleep 2
+    rc "diagonals stats"
+    echo
+    rc "forceload remove $x0 $z0 $x1 $z1" >/dev/null
+    cmd_lattice_expect "$1"
+}
+
+cmd_lattice_clear() {
+    local x0 z0 n block x1 z1
+    read -r x0 z0 n block < <(lattice_of "$1") || return 1
+    x1=$((x0 + n - 1))
+    z1=$((z0 + n - 1))
+    rc "gamerule max_block_modifications 1000000" >/dev/null
+    rc "forceload add $x0 $z0 $x1 $z1" >/dev/null
+    rc "fill $x0 $Y $z0 $x1 $((Y + 1)) $z1 air"
+    echo
+    rc "forceload remove $x0 $z0 $x1 $z1" >/dev/null
+}
+
 cmd_list() {
     local layout
     for layout in "${ORDER[@]}"; do
@@ -787,9 +870,18 @@ case "${1:-}" in
             *) echo "usage: scripts/layouts.sh modded <build|check|sweep|clear>" >&2; exit 1 ;;
         esac
         ;;
+    lattice)
+        case "${2:-}" in
+            build) cmd_lattice_build "${3:-}" ;;
+            clear) cmd_lattice_clear "${3:-}" ;;
+            expect) cmd_lattice_expect "${3:-}" ;;
+            *) echo "usage: scripts/layouts.sh lattice <build|clear|expect> <wall|fence>" >&2
+                exit 1 ;;
+        esac
+        ;;
     *)
         echo "usage: scripts/layouts.sh <build|check|f-split|stats|list|live|timed|loop|unload" \
-            "|reload|f-first|f-return|drawn|modded> [args...]" >&2
+            "|reload|f-first|f-return|drawn|modded|lattice> [args...]" >&2
         exit 1
         ;;
 esac
