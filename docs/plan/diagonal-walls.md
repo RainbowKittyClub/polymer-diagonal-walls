@@ -28,8 +28,9 @@ and chunk lifecycle, both on S3), S6 (tall arms, on S3) and S7 → S8 (collision
 on S2 only). S9 (settings) is skipped. S10 (fence and pane arms) needs S3; S11 → S12 (shulker
 columns, then slimes, for every family) need S10; S13 (mob collision for fences and panes) needs S7
 and S10. S14 (PPB and Enderscape blocks) needs S6, S10 and S11. S15 (load and editors) needs S4, S5
-and S11. S16 (Presence Footsteps) needs S11, and S17 (Axiom edits) needs S4. S13 makes the feature
-complete for vanilla blocks and S14 for modded ones; S18 ships it.
+and S11. S16 (Presence Footsteps) needs S11. S17 (Axiom edits) needs S4. S18 (fence arms without
+the corner post) needs S10 and S14. S19 (watched holders in the RKC Polymer fork) stands alone. S13
+makes the feature complete for vanilla blocks and S14 for modded ones; S20 ships it.
 
 ---
 
@@ -883,11 +884,85 @@ calls its API at runtime. After a dev-server restart the served pack carried the
 user rejoined in the Kalic0 client, walked into the diagonals, and reported on 2026-10-18 that "the
 sound is better".
 
-## S18 — Live deploy — **planned**
+## S17 — Axiom edits — **planned**
 
-**Build.** Release 0.1.0, and deploy only after the user names the go-ahead. Copy the jar into
-survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/restart.sh survival
-"…"`. Nothing persists, so rollback is removing the jar.
+**Build.** Axiom 6.0.3 writes nearly all of its edits straight into the chunk section, so neither
+the S4 hook nor any vanilla update sees them. That covers pastes, fills, every tool, and undo and
+redo, which all go through the block buffer. Axiom also exposes no server event for other mods.
+
+There are two raw write sites, both
+`LevelChunkSection.setBlockState(IIILnet/minecraft/world/level/block/state/BlockState;Z)`:
+
+- `com.moulberry.axiom.packets.AxiomServerboundSetBuffer.applyBlockBufferServer`, at bytecode
+  offset 696.
+- `AxiomServerboundSetBlock.setWithoutUpdates`, at offset 273.
+
+Its other block writes already go through `ServerLevel.setBlock`.
+
+Add one `@Pseudo` mixin with a `@WrapOperation` on each site. It needs no compile dependency,
+since the signatures use vanilla types, and it is skipped when Axiom is absent. When the old state
+differs from the new one, call `ArmUpdates.blockChanged`:
+
+- In `setWithoutUpdates`, the `BlockPos` argument gives the position.
+- In `applyBlockBufferServer`, the position comes from the `LevelChunk` local, the local x and z,
+  and the section's index, found by identity in `getSections()` and cached.
+
+Keep `require` at its default, so a moved call fails loudly at boot. Fix `LevelChunkMixin`'s
+comment, which says every block write on a loaded chunk ends there.
+
+**Done when.** With Axiom in `run/mods`, the user builds, pastes, fills and undoes walls, fences
+and panes with Axiom's tools. Arms appear and go within a tick each time. The dev server boots with
+0 mixin failures both with Axiom and without it.
+
+## S18 — Fence arms without the corner post — **planned**
+
+**Build.** A fence's blockstate draws its post under every state, so S10's block-display arm shows
+an extra post at the corner point. PPB and Enderscape fences already avoid it: S14 draws only their
+side parts as item displays.
+
+Give vanilla fences the same path for every watcher holding the server pack:
+
+- The mod ships one item definition per vanilla fence, pointing at that fence's side model. Read
+  the model from the fence's own blockstate, since bamboo's side models differ by direction.
+- The arm draws only the side parts, never the post part.
+
+Watchers without the pack keep the block display, post included; that is the lobby, which hosts
+no pack. Split the two by `PolymerResourcePackUtils.hasMainPack` in each holder's `startWatching`,
+as `VoidDeepslateBlock.java:313` does.
+
+**Done when.**
+
+- In the Kalic0 client with the pack, layouts H and I and pen L show bars with no corner post.
+- The bars meet the posts with no seam.
+- A client without the pack still sees the block-display arm.
+
+## S19 — A set for Polymer's watched holders — **planned**
+
+**Build.** In `rkc/forks/polymer`, add a branch off `9a3e815` (0.17.5+26.2), with a `-26.3` twin
+like every fork branch. polymer-virtual-entity keeps each player's watched holders in an
+`ArrayList`, and `stopWatching` removes from it one at a time
+(`ServerPlayNetworkHandlerMixin.java:26`, `:37`, `:48`). A player leaving N holders therefore costs O(N²): 48–85 ms on S15's lattice
+teleport-out.
+
+Swap it for an insertion-ordered set, such as fastutil's `ReferenceLinkedOpenHashSet`, so anything
+walking the collection keeps its order. Merge it into `rkc/26.2`, which the live jar is built from,
+only for S20.
+
+**Done when.** On a dev server running the fork bundle with this branch, repacked the way the chest
+worktree did, the wall-lattice teleport-out stays under 50 ms. Polymer's other behaviour shows no
+change: the dev server boots, and arms and columns behave as before.
+
+## S20 — Live deploy — **planned**
+
+**Build.** Release 0.1.0, and deploy only after the user names the go-ahead, to survival and the
+lobby, which the user chose on 2026-10-18. Copy the jar into `data/mods/` and `lobby/mods/` under
+a dot-name and `mv` it into place. Do the same with the RKC Polymer bundle rebuilt from `rkc/26.2`
+with S19, since both servers run it. Then run `scripts/restart.sh survival "…"` and
+`scripts/restart.sh lobby "…"`.
+
+The lobby sends no resource pack, so it gets block-display arms only. Modded-block arms, S18's
+post-less fence arms and S16's Presence Footsteps silence apply on survival alone. Nothing
+persists, so rollback is removing the jar.
 
 **Done when.**
 
@@ -898,40 +973,6 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
 
 ## Open decisions
 
-- **Mixed-material arms.** Default is one display in the owner's material. The alternative is two
-  half arms, one per endpoint's material, at twice the entity count. Settled by looking at layout E
-  after S3.
-- **Default view range and `collision_range`.** Settled by the S15 numbers.
-- **Cross-family diagonals**, such as a wall to iron bars or a fence to a fence gate, modded gates
-  included. Default: same family only. Settled by asking after S10.
-- **The fence arm's post.** If the extra post at the corner point looks wrong after S10, vanilla
-  fences can take S14's item-display path instead, with the mod's own item definitions pointing at
-  `minecraft:block/<wood>_fence_side`. Survival requires the pack, so that reaches every survival
-  player. Settled by the user's look at layout H.
-- **Lobby install.** The lobby is a void world. Settled by the user before S18.
-- **Pane column height.** Default: three shulkers per column with lids at raw peek 52, which stand
-  1.005 against a pane's 1.0: the lowest stack that reaches it. Two open shulkers stand 0.875 and
-  three open ones 1.3125. Settled by the user's test on layout J.
-- **Modded arm models.** S14's Build says to show each side part's plain `_side` model, turned as
-  its blockstate turns it. The two halves of an arm overlap, though: a fence side runs to z 9.08 of
-  16, so the north and south halves share 2.16 px, and the 0.08 px growth makes wall halves share
-  0.16 px. Plain models put different texels on those coplanar faces. Default: a uvlock part shows
-  the patch's pre-rotated `_uvlock_<x>_<y>` copy unturned, as the overlays draw it, so the overlap
-  carries the same texels from both halves, as a block display of a vanilla arm does. Parts also
-  sit 1/4096 apart, as the overlays shift theirs. Settled by the user's look at layouts S–Y.
-- **View range of modded arms.** S9's `view_range` sets every block-display arm; an item-display
-  arm (S14) keeps its overlay's range, 3.0 for PPB and 100 for enderscape-patch, so it vanishes
-  with the overlay it meets. The alternative is the smaller of the two. Default: the overlay's
-  range. Settled by the user.
-- **Holders per owner.** Each owner has its own holder, and Polymer keeps every player's watched
-  holders in a list. A player who leaves the fully loaded 16-chunk wall lattice drops 32,640 of them
-  in one tick, and that tick ran 48–85 ms, nearly all in `ElementHolder.stopWatching`. Its
-  `ArrayList.remove` is linear, so the cost grows with the square of a player's holders
-  (`ServerPlayNetworkHandlerMixin.java:26`, `:37`, `:48`). While the lattice is in view, the same
-  holders cost about 1 ms a tick: 0.6 ms walking each player's list and 0.5 ms ticking each chunk's
-  attachments (`ServerWorldMixin.java:16`). Default: keep one holder per owner, since real builds
-  give a player far fewer holders. The alternatives are one holder per chunk (256 for the lattice)
-  or a set in the RKC Polymer fork. Settled by the user.
 - **Rabbits over a sealed diagonal.** A rabbit that bumps into something jumps 1.71 high, or 2.25
   from a standstill (`Rabbit.java:153`, `:167`). It lands on a post or a corner box at 1.5 and hops
   down on the far side. In S7's sealed pen G, every chicken, baby cow and cat stayed through
@@ -939,6 +980,28 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
   through the same sprint. Corner boxes 2.5 tall cut the losses from about 2.5 to 1 of 10 rabbits
   per 3000 ticks, because the posts are still perches. Default: keep the boxes at post height and
   leave rabbits out of S7's pass count. Settled by the user.
+- **Wall slimes.** S12 gives a wall diagonal two 0.25 slimes at ±0.125, and they cover exactly the
+  wall's two column squares, which a player can never enter. So they never push anyone, and a
+  wall feels as it would without them. Fence slimes are 0.375 against 0.25 columns, which leaves a
+  margin a player's box can overlap. Two choices: size wall slimes past the columns, for example
+  0.375 centred on each column, or drop them. Settled by the user.
+
+## Reference: Decisions
+
+Settled with the user on 2026-10-18, after the in-world pass:
+
+- **Mixed-material arms:** one arm in the owner's material.
+- **View range and collision range:** constants, since S9 was dropped. Block-display arms draw
+  within 128 blocks, and columns go to watchers within 8.
+- **Cross-family diagonals:** same family only.
+- **Fence arm's post:** remove it where the pack is present (S18).
+- **Pane column height:** three shulkers standing 1.005 against the pane's 1.0.
+- **Modded arm models:** the mods' pre-rotated `_uvlock_` copies, drawn as their overlays draw them.
+- **Modded arm view range:** each overlay's own, 3.0 for PPB and 100 for enderscape-patch.
+- **Holders per owner:** keep one holder per owner, and fix the cost in the RKC Polymer fork (S19).
+- **Lobby:** install on both survival and the lobby (S20).
+- **Existing walls:** arms come from the blocks on every chunk load. Existing builds and generated
+  structures join diagonally too, and nothing is stored.
 
 ## Reference: Wall geometry
 
