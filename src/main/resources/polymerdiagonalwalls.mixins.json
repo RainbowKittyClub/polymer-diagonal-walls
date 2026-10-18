@@ -8,6 +8,7 @@
     "AxiomSetBufferMixin",
     "CrossCollisionBlockMixin",
     "LevelChunkMixin",
+    "MoveControlMixin",
     "ShulkerAccessor",
     "WalkNodeEvaluatorMixin",
     "WallBlockMixin",
