@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "polymerdiagonalwalls:block/example_block"
+    }
+  }
+}
