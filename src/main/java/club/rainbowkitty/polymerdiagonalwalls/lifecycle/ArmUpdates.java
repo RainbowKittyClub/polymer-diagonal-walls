@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
@@ -27,12 +28,15 @@ import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
 /**
  * Keeps arms in step with the world. Block changes and chunk loads and unloads only mark
  * positions, from whatever thread raised them; each level's end of tick drains the marks into
- * {@link ArmIndex} on the server thread. Nothing here reads another chunk while a block is being
- * set, or touches level storage from a chunk event, which can fire inside a level's constructor.
+ * {@link ArmIndex} on the server thread, within a time budget: what is left waits for the next
+ * tick. Nothing here reads another chunk while a block is being set, or touches level storage from
+ * a chunk event, which can fire inside a level's constructor.
  */
 public final class ArmUpdates {
     // Drains a loaded chunk may wait for getChunkNow to return it before it is given up.
     private static final int CHUNK_WAIT_DRAINS = 20;
+    // A tenth of a tick: a 16-chunk-square wall lattice took one tick to 78 ms uncapped.
+    private static final long DRAIN_BUDGET_NANOS = 5_000_000L;
 
     private static final Map<ServerLevel, PendingChanges> PENDING = new ConcurrentHashMap<>();
 
@@ -93,28 +97,49 @@ public final class ArmUpdates {
     }
 
     // Forgets unloaded chunks first, so a chunk that unloaded and loaded again is rebuilt. Then
-    // refreshes every member of each loaded chunk and every marked block as an owner, plus the two
-    // positions that may own a diagonal ending there, each once however often it was marked.
+    // refreshes the owners an earlier drain left, every marked block as an owner, plus the two
+    // positions that may own a diagonal ending there, and last every member of each loaded chunk,
+    // each once however often it was marked. Past the budget, the rest is queued again.
     private static void drain(ServerLevel level) {
         PendingChanges pending = PENDING.get(level);
         Batch batch = pending == null ? null : pending.take();
         if (batch == null) {
             return;
         }
+        long deadline = System.nanoTime() + DRAIN_BUDGET_NANOS;
         batch.unloaded().forEach(chunk -> ArmIndex.dropChunk(level, ChunkPos.unpack(chunk)));
-        LongOpenHashSet owners = new LongOpenHashSet();
+        LongOpenHashSet owners = batch.owners();
+        batch.blocks().forEach(pos -> addOwners(owners, pos));
+        refresh(level, owners, deadline, pending);
         for (Long2IntMap.Entry entry : batch.loaded().long2IntEntrySet()) {
             long chunkKey = entry.getLongKey();
+            if (System.nanoTime() >= deadline) {
+                pending.requeue(chunkKey, entry.getIntValue());
+                continue;
+            }
             LevelChunk chunk = level.getChunkSource().getChunkNow(
                     ChunkPos.getX(chunkKey), ChunkPos.getZ(chunkKey));
             if (chunk != null) {
-                ChunkScan.forEachMember(chunk, pos -> addOwners(owners, pos.asLong()));
+                LongOpenHashSet members = new LongOpenHashSet();
+                ChunkScan.forEachMember(chunk, pos -> addOwners(members, pos.asLong()));
+                refresh(level, members, deadline, pending);
             } else if (entry.getIntValue() < CHUNK_WAIT_DRAINS) {
-                pending.waitFor(chunkKey, entry.getIntValue() + 1);
+                pending.requeue(chunkKey, entry.getIntValue() + 1);
             }
         }
-        batch.blocks().forEach(pos -> addOwners(owners, pos));
-        owners.forEach(owner -> ArmIndex.refresh(level, BlockPos.of(owner)));
+    }
+
+    // Refreshes owners until the deadline, then hands the rest back for the next drain.
+    private static void refresh(ServerLevel level, LongSet owners, long deadline,
+            PendingChanges pending) {
+        LongIterator iterator = owners.iterator();
+        while (iterator.hasNext()) {
+            if (System.nanoTime() >= deadline) {
+                pending.defer(iterator);
+                return;
+            }
+            ArmIndex.refresh(level, BlockPos.of(iterator.nextLong()));
+        }
     }
 
     // Adds pos and the positions one block west and one block along z either way.
@@ -125,8 +150,9 @@ public final class ArmUpdates {
     }
 
     // Everything one drain takes: marked blocks, loaded chunks with the drains each has waited,
-    // and unloaded chunks.
-    private record Batch(LongSet blocks, Long2IntMap loaded, LongSet unloaded) {
+    // unloaded chunks, and owners an earlier drain had no time for.
+    private record Batch(LongSet blocks, Long2IntMap loaded, LongSet unloaded,
+            LongOpenHashSet owners) {
     }
 
     // One level's marks waiting for its next drain. Any thread may mark; the drain takes them all.
@@ -134,6 +160,7 @@ public final class ArmUpdates {
         private LongOpenHashSet blocks = new LongOpenHashSet();
         private Long2IntOpenHashMap loaded = new Long2IntOpenHashMap();
         private LongOpenHashSet unloaded = new LongOpenHashSet();
+        private LongOpenHashSet owners = new LongOpenHashSet();
 
         // Queues a changed block position.
         private synchronized void markBlock(long pos) {
@@ -145,9 +172,17 @@ public final class ArmUpdates {
             loaded.put(chunk, 0);
         }
 
-        // Queues a chunk a drain could not read yet, unless something marked it since.
-        private synchronized void waitFor(long chunk, int drainsWaited) {
+        // Queues a chunk a drain could not read yet or had no time for, unless something marked
+        // it since.
+        private synchronized void requeue(long chunk, int drainsWaited) {
             loaded.putIfAbsent(chunk, drainsWaited);
+        }
+
+        // Queues the owners left in iterator, to refresh as they are.
+        private synchronized void defer(LongIterator iterator) {
+            while (iterator.hasNext()) {
+                owners.add(iterator.nextLong());
+            }
         }
 
         // Queues an unloaded chunk, which makes a load of it still waiting moot.
@@ -158,13 +193,14 @@ public final class ArmUpdates {
 
         // Hands over everything queued and starts again empty; null when nothing is queued.
         private synchronized @Nullable Batch take() {
-            if (blocks.isEmpty() && loaded.isEmpty() && unloaded.isEmpty()) {
+            if (blocks.isEmpty() && loaded.isEmpty() && unloaded.isEmpty() && owners.isEmpty()) {
                 return null;
             }
-            Batch batch = new Batch(blocks, loaded, unloaded);
+            Batch batch = new Batch(blocks, loaded, unloaded, owners);
             blocks = new LongOpenHashSet();
             loaded = new Long2IntOpenHashMap();
             unloaded = new LongOpenHashSet();
+            owners = new LongOpenHashSet();
             return batch;
         }
     }
