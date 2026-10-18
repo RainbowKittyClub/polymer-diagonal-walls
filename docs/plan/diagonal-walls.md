@@ -914,7 +914,7 @@ comment, which says every block write on a loaded chunk ends there.
 and panes with Axiom's tools. Arms appear and go within a tick each time. The dev server boots with
 0 mixin failures both with Axiom and without it.
 
-## S18 — Fence arms without the corner post — **planned**
+## S18 — Fence arms without the corner post — **in progress**
 
 **Build.** A fence's blockstate draws its post under every state, so S10's block-display arm shows
 an extra post at the corner point. PPB and Enderscape fences already avoid it: S14 draws only their
