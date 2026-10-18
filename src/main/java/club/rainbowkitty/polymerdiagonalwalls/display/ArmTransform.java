@@ -1,17 +1,21 @@
 package club.rainbowkitty.polymerdiagonalwalls.display;
 
 import eu.pb4.polymer.virtualentity.api.elements.BlockDisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.DisplayElement;
+import eu.pb4.polymer.virtualentity.api.elements.ItemDisplayElement;
 import org.joml.Quaternionf;
+import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.phys.Vec3;
 
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.Diagonal;
 
 /**
- * The placement every block-display arm shares: a model whose bar runs along z, turned 45° about
- * the corner point between the two posts and stretched along its length so both ends hide in the
- * posts. The geometry is the plan's "Reference: Arm geometry".
+ * The placement every arm shares: a model whose bar runs along z, turned 45° about the corner
+ * point between the two posts and stretched along its length so both ends hide in the posts. The
+ * geometry is the plan's "Reference: Arm geometry".
  */
 public final class ArmTransform {
     /** Shrinks an arm across and lifts it, so no face is coplanar with a post's or the ground's. */
@@ -32,6 +36,8 @@ public final class ArmTransform {
     // A full-height arm reaches 1 + ε.
     private static final float CULL_HEIGHT = 1.0625f;
     private static final float EIGHTH_TURN = (float) (Math.PI / 4);
+    // Between overlapping parts of one item-display arm, as the overlays shift theirs.
+    private static final float PART_SHIFT = 1f / 4096f;
 
     private ArmTransform() {
     }
@@ -45,22 +51,69 @@ public final class ArmTransform {
      */
     public static void apply(
             BlockDisplayElement arm, Diagonal diagonal, Vec3 origin, float length, float height) {
-        int dz = diagonal.dz();
-        Vec3 entityPosition = diagonal.corner().add(-NUDGE, 0, -dz * NUDGE);
+        Placement placement = placement(diagonal, length, height);
+        arm.setTranslation(placement.translation());
+        arm.setLeftRotation(placement.rotation());
+        arm.setScale(placement.scale());
+        finish(arm, diagonal, origin, VIEW_RANGE);
+    }
 
-        // p -> T + R(theta) S (p - c). JOML's rotationY sends +z to (sin, cos), so +45° runs
-        // south-east and -45° along the north-east line.
+    /**
+     * Places one model part of an item-display arm where a block display of the whole arm state
+     * would draw it, with the part's own blockstate rotation. Its item renders in context
+     * {@code NONE} at yaw 180, as the mods' overlays draw theirs, and {@code index} sets it a hair
+     * off the parts before it so overlapping faces never z-fight.
+     *
+     * @param partRotation the part's rotation as the overlays apply it, about the block centre
+     * @param viewRange the view range of the overlay the arm meets
+     */
+    public static void applyPart(ItemDisplayElement part, Diagonal diagonal, Vec3 origin,
+            float length, float height, Quaternionfc partRotation, int index, float viewRange) {
+        // Yaw 180 and the item renderer's half turn are both H, around a centred model: m draws at
+        // H T H (m - c), the block display's t + R S m when T = (H t + R S H c) R S, then the part.
+        Placement placement = placement(diagonal, length, height);
+        Vector3f centre = halfTurn(new Vector3f(0.5f, 0.5f, 0.5f));
+        Vector3f shift = halfTurn(new Vector3f(index * PART_SHIFT, index * PART_SHIFT, 0));
+        Vector3f translation = halfTurn(new Vector3f(placement.translation()))
+                .add(placement.rotation().transform(centre.mul(placement.scale())))
+                .add(placement.rotation().transform(shift));
+        part.setItemDisplayContext(ItemDisplayContext.NONE);
+        part.setYaw(180);
+        part.setTranslation(translation);
+        part.setLeftRotation(placement.rotation());
+        part.setScale(placement.scale());
+        part.setRightRotation(partRotation);
+        finish(part, diagonal, origin, viewRange);
+    }
+
+    // p -> t + R S p for a model with corner c at the block origin. JOML's rotationY sends +z to
+    // (sin, cos), so +45° runs south-east and -45° along the north-east line.
+    private static Placement placement(Diagonal diagonal, float length, float height) {
+        int dz = diagonal.dz();
         Quaternionf rotation = new Quaternionf().rotationY(dz * EIGHTH_TURN);
         Vector3f scale = new Vector3f(1 - EPSILON, height, length);
         Vector3f scaledCentre = new Vector3f(0.5f * scale.x, 0, 0.5f * scale.z);
         Vector3f translation = new Vector3f(NUDGE, EPSILON, dz * NUDGE)
                 .sub(rotation.transform(scaledCentre));
+        return new Placement(translation, rotation, scale);
+    }
 
-        arm.setOffset(entityPosition.subtract(origin));
-        arm.setTranslation(translation);
-        arm.setLeftRotation(rotation);
-        arm.setScale(scale);
-        arm.setDisplaySize(CULL_WIDTH, CULL_HEIGHT);
-        arm.setViewRange(VIEW_RANGE);
+    // Position, culling box and view range, which every arm element shares.
+    private static void finish(
+            DisplayElement element, Diagonal diagonal, Vec3 origin, float viewRange) {
+        int dz = diagonal.dz();
+        Vec3 entityPosition = diagonal.corner().add(-NUDGE, 0, -dz * NUDGE);
+        element.setOffset(entityPosition.subtract(origin));
+        element.setDisplaySize(CULL_WIDTH, CULL_HEIGHT);
+        element.setViewRange(viewRange);
+    }
+
+    // A half turn about y, in place.
+    private static Vector3f halfTurn(Vector3f vector) {
+        return vector.set(-vector.x, vector.y, -vector.z);
+    }
+
+    // A block display's transform: translation, then rotation, then scale.
+    private record Placement(Vector3f translation, Quaternionf rotation, Vector3f scale) {
     }
 }
