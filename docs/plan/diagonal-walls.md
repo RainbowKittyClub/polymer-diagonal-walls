@@ -941,8 +941,8 @@ as `VoidDeepslateBlock.java:313` does.
 **Build.** In `rkc/forks/polymer`, add a branch off `9a3e815` (0.17.5+26.2), with a `-26.3` twin
 like every fork branch. polymer-virtual-entity keeps each player's watched holders in an
 `ArrayList`, and `stopWatching` removes from it one at a time
-(`ServerPlayNetworkHandlerMixin.java:26`, `:37`, `:48`). A player leaving N holders therefore costs O(N²): 48–85 ms on S15's lattice
-teleport-out.
+(`ServerPlayNetworkHandlerMixin.java:26`, `:37`, `:48`). A player leaving N holders therefore
+costs O(N²): 48–85 ms on S15's lattice teleport-out.
 
 Swap it for an insertion-ordered set, such as fastutil's `ReferenceLinkedOpenHashSet`, so anything
 walking the collection keeps its order. Merge it into `rkc/26.2`, which the live jar is built from,
@@ -980,12 +980,6 @@ persists, so rollback is removing the jar.
   through the same sprint. Corner boxes 2.5 tall cut the losses from about 2.5 to 1 of 10 rabbits
   per 3000 ticks, because the posts are still perches. Default: keep the boxes at post height and
   leave rabbits out of S7's pass count. Settled by the user.
-- **Wall slimes.** S12 gives a wall diagonal two 0.25 slimes at ±0.125, and they cover exactly the
-  wall's two column squares, which a player can never enter. So they never push anyone, and a
-  wall feels as it would without them. Fence slimes are 0.375 against 0.25 columns, which leaves a
-  margin a player's box can overlap. Two choices: size wall slimes past the columns, for example
-  0.375 centred on each column, or drop them. Settled by the user.
-
 ## Reference: Decisions
 
 Settled with the user on 2026-10-18, after the in-world pass:
@@ -1000,6 +994,8 @@ Settled with the user on 2026-10-18, after the in-world pass:
 - **Modded arm view range:** each overlay's own, 3.0 for PPB and 100 for enderscape-patch.
 - **Holders per owner:** keep one holder per owner, and fix the cost in the RKC Polymer fork (S19).
 - **Lobby:** install on both survival and the lobby (S20).
+- **Wall slimes:** 0.375 wide, centred on each 0.25 wall column. The first ones were the
+  columns' own size, which a player can never enter, so they pushed no one.
 - **Existing walls:** arms come from the blocks on every chunk load. Existing builds and generated
   structures join diagonally too, and nothing is stored.
 
