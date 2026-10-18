@@ -21,7 +21,9 @@ public final class DiagonalsCommand {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, context, selection) -> {
             List<LiteralArgumentBuilder<CommandSourceStack>> subcommands = List.of(
-                    ProbeCommand.node());
+                    ProbeCommand.node(),
+                    RebuildCommand.node(),
+                    StatsCommand.node());
             LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("diagonals")
                     .requires(anyOf(subcommands));
             subcommands.forEach(root::then);
