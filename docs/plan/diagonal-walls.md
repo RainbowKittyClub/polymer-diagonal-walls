@@ -275,7 +275,7 @@ The vanilla client sees the same. Two unknowns get settled here: if arms run alo
 diagonal, flip θ in the reference; if the 45° faces shade visibly differently from the posts, note
 it in As built.
 
-## S4 — Live updates — **planned**
+## S4 — Live updates — **in progress**
 
 **Build.** `mixin/LevelChunkMixin` hooks `LevelChunk.setBlockState(BlockPos, BlockState, int)` at
 `RETURN` with a non-null return value, on server levels only. If the old or new state is a diagonal
@@ -298,7 +298,7 @@ Nothing reads another chunk inside `setBlockState`. That follows the same rule a
 
 An rcon place-and-break loop of 1000 rounds ends with `stats` equal to the layout total.
 
-## S5 — Chunk load and unload — **planned**
+## S5 — Chunk load and unload — **in progress**
 
 **Build.** `ServerChunkEvents.CHUNK_LOAD` (`(ServerLevel, LevelChunk, boolean)`,
 `fabric-lifecycle-events-v1` 4.1.9) only enqueues the chunk position. At drain, if `getChunkNow`
