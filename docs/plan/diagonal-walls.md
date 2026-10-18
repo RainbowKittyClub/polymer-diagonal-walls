@@ -341,7 +341,7 @@ exactly on the post top, z-fighting where the arm end sits inside the post. Lift
   arms.
 - Breaking the upper wall drops the lower arm to low within a tick.
 
-## S7 — Solid gap for non-players — **planned**
+## S7 — Solid gap for non-players — **in progress**
 
 **Build.** `mixin/WallBlockMixin` hooks `WallBlock.getCollisionShape(BlockState, BlockGetter,
 BlockPos, CollisionContext)` (`WallBlock.java:96`) at `RETURN`. It applies when the context is an
@@ -366,7 +366,7 @@ walls; the legs below run with Lithium installed to settle that.
 3. An arrow shot into a gap hits the corner.
 4. A mineflayer bot walks into the corner where the box sits, and the log shows no `moved wrongly`.
 
-## S8 — Pathfinding stops routing through sealed gaps — **planned**
+## S8 — Pathfinding stops routing through sealed gaps — **in progress**
 
 **Build.** `mixin/WalkNodeEvaluatorMixin` hooks `isDiagonalValid(Node, Node, Node)`
 (`WalkNodeEvaluator.java:167`) at `HEAD`, cancellable. When both side nodes are `FENCE` and
