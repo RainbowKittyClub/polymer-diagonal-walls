@@ -690,7 +690,7 @@ arms follow or only refresh on chunk reload.
 - WorldEdit edits update arms within a tick.
 - Axiom's behaviour is recorded.
 
-## S16 — Silence Presence Footsteps on the columns — **in progress**
+## S16 — Silence Presence Footsteps on the columns — **done**
 
 **Build.** Presence Footsteps 1.13.3, in the user's client pack, maps `minecraft:shulker` to
 `squeakywood` in its `golemmap.json`. So pressing against any collision column plays a wooden
@@ -705,6 +705,13 @@ holding `{"minecraft:shulker": "NOT_EMITTER"}` among the mod's assets, and regis
 **Done when.** In the user's client with Presence Footsteps, walking into the wall, fence and pane
 diagonals of layouts A, H and J plays no footstep from the columns, while the ground still sounds
 normal.
+
+### As built
+
+Built as planned, plus a `polymer-resource-pack` dependency in `fabric.mod.json`, since the mod now
+calls its API at runtime. After a dev-server restart the served pack carried the override. The
+user rejoined in the Kalic0 client, walked into the diagonals, and reported on 2026-10-18 that "the
+sound is better".
 
 ## S17 — Live deploy — **planned**
 
