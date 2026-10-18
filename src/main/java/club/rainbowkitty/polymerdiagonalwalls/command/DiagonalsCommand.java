@@ -23,6 +23,7 @@ public final class DiagonalsCommand {
             List<LiteralArgumentBuilder<CommandSourceStack>> subcommands = List.of(
                     ProbeCommand.node(),
                     RebuildCommand.node(),
+                    SealDebugCommand.node(),
                     StatsCommand.node());
             LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("diagonals")
                     .requires(anyOf(subcommands));
