@@ -35,7 +35,7 @@ public final class WallArmVisual implements ArmVisual {
     @Override
     public List<VirtualElement> elements(Diagonal diagonal, Vec3 origin) {
         int dz = diagonal.dz();
-        Vec3 corner = Vec3.atLowerCornerOf(diagonal.west()).add(1, 0, dz > 0 ? 1 : 0);
+        Vec3 corner = diagonal.corner();
         Vec3 entityPosition = corner.add(-NUDGE, 0, -dz * NUDGE);
 
         // p -> T + R(theta) S (p - c). JOML's rotationY sends +z to (sin, cos), so +45° runs

@@ -2,6 +2,7 @@ package club.rainbowkitty.polymerdiagonalwalls.diagonal;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * One diagonal between two blocks of a family standing corner to corner, named by its west end.
@@ -35,5 +36,10 @@ public record Diagonal(
     /** Whether {@code pos} is one of this diagonal's two ends. */
     public boolean hasEnd(BlockPos pos) {
         return west.equals(pos) || east().equals(pos);
+    }
+
+    /** The corner point the two ends' cells share, at their bottom; the arm's centre. */
+    public Vec3 corner() {
+        return Vec3.atLowerCornerOf(west).add(1, 0, dz > 0 ? 1 : 0);
     }
 }
