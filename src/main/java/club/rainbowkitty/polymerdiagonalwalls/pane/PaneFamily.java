@@ -31,7 +31,7 @@ public final class PaneFamily implements DiagonalFamily {
 
     // No client collision yet.
     private static final ColumnLayout COLUMNS =
-            new ColumnLayout(List.of(), 0.25, 0, List.of(), 0.25);
+            new ColumnLayout(List.of(), 0.25, 0, 0, List.of(), 0.25);
 
     private final ArmVisual visual = CrossArmVisual.pane();
 

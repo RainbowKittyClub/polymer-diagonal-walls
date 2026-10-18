@@ -12,12 +12,10 @@ import club.rainbowkitty.polymerdiagonalwalls.diagonal.Diagonal;
 import club.rainbowkitty.polymerdiagonalwalls.mixin.ShulkerAccessor;
 
 /**
- * A diagonal's client collision: columns of open, invisible shulkers, which a vanilla client
- * treats as solid, standing where the family's {@link ColumnLayout} puts them.
+ * A diagonal's client collision: columns of invisible shulkers, which a vanilla client treats as
+ * solid, standing where the family's {@link ColumnLayout} puts them and open as far as it says.
  */
 public final class ShulkerColumns {
-    // The raw peek of a fully open lid.
-    private static final byte OPEN_PEEK = 100;
     // A free shulker snaps to (floor(x) + 0.5, floor(y + 0.5), floor(z) + 0.5), Shulker.java:334.
     // Spawned half a block low it lands in its seat's block, so the move onto the seat keeps the
     // lid open: the client closes it whenever that block changes after a tick (:337).
@@ -33,21 +31,24 @@ public final class ShulkerColumns {
     public static List<Seat> seats(Diagonal diagonal, Vec3 origin, boolean visible) {
         ColumnLayout layout = diagonal.family().columns();
         Vec3 corner = diagonal.corner();
+        byte peek = (byte) layout.shulkerPeek();
+        double step = layout.shulkerHeight();
         List<Seat> seats = new ArrayList<>();
         for (double offset : layout.columnOffsets()) {
             Vec3 base = corner.add(offset, 0, diagonal.dz() * offset);
             for (int index = 0; index < layout.shulkersPerColumn(); index++) {
-                Vec3 seat = base.add(0, index * layout.shulkerHeight(), 0);
-                seats.add(shulker(seat, origin, layout.shulkerScale(), visible));
+                Vec3 seat = base.add(0, index * step, 0);
+                seats.add(shulker(seat, origin, layout.shulkerScale(), peek, visible));
             }
         }
         return seats;
     }
 
-    // One open shulker on its seat.
-    private static Seat shulker(Vec3 seat, Vec3 origin, double scale, boolean visible) {
+    // One shulker on its seat, its lid at peek.
+    private static Seat shulker(
+            Vec3 seat, Vec3 origin, double scale, byte peek, boolean visible) {
         SimpleEntityElement shulker = new SimpleEntityElement(EntityTypes.SHULKER);
-        shulker.getSyncedData().set(ShulkerAccessor.polymerdiagonalwalls$peek(), OPEN_PEEK);
+        shulker.getSyncedData().set(ShulkerAccessor.polymerdiagonalwalls$peek(), peek);
         return Seat.of(shulker, seat, seat.subtract(0, SPAWN_DROP, 0), origin, scale, visible);
     }
 }
