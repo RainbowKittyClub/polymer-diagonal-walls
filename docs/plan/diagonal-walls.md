@@ -116,12 +116,12 @@ seeds. Test layouts get built by `scripts/layouts.sh` in the mod repo: rcon `set
 | D | A plus a stone block on one shared neighbour | none (A connects to its face) |
 | E | cobblestone and brick walls corner to corner | one, owner's material |
 | F | A placed across a chunk border | one, whichever chunk loads first |
-| G | a diamond pen: four diagonal runs of five walls | twelve |
+| G | a diamond pen: four diagonal runs of five walls | sixteen |
 | H | two oak fences corner to corner | one |
 | I | six oak fences in a diagonal run | five |
 | J | two glass panes corner to corner | one |
 | K | an oak fence and a nether brick fence corner to corner | none (vanilla never joins them) |
-| L | G built from oak fences | twelve |
+| L | G built from oak fences | sixteen |
 
 The user does the visual checks in the dev client, and gets a short "what you'll see" before each
 round. A vanilla 26.2 client (no Fabric) joins the dev server for the no-mod view. That works
@@ -184,7 +184,7 @@ list then went in on top:
 The lint entry in `scripts/lint/build.gradle` and the `CLAUDE.md` row are workspace edits made
 outside this repo; `checkstyleTarget` on `src/main/java` passes.
 
-## S2 — Diagonal rule and probe command — **planned**
+## S2 — Diagonal rule and probe command — **done**
 
 **Build.** `wall/DiagonalRule` holds static, side-effect-free methods:
 
@@ -206,6 +206,36 @@ diagonal, and never a chunk load.
 **Done when.** After `scripts/layouts.sh`, `probe` at each layout's owner prints exactly the
 "Expected diagonal" column of the layout table. For F, it prints the diagonal once both chunks are
 loaded, and none while the partner's chunk is unloaded (`/forceload`, players away).
+
+### As built
+
+The rule is family-pluggable, so S10 adds fences and panes without touching it. It lives in
+`diagonal/`, not `wall/`:
+
+- `DiagonalFamily` answers `admits(state)`, `sideOpen(state, side)` and `joins(a, b)`;
+  `DiagonalRule.register` adds one, and `familyOf` and `isDiagonalBlock` ask every family.
+- `wall/WallFamily` is the walls' family. Its `admits` is the planned `isDiagonalWall`: a
+  `WallBlock` in `polymerdiagonalwalls:diagonal_walls`, which holds `#minecraft:walls`.
+- `connects(a, b, dx, dz)` is as planned. `owned` and `all` return `Diagonal` records, which name
+  the west end, `dz` and both states. Each also takes a `BlockReader`, so S7 can read through a
+  `BlockGetter`. `BlockReader.loaded(level)` reads through `getChunkNow`, which answers `null` off
+  the server thread.
+
+`/diagonals probe <pos>` prints block ids, so E's materials read unambiguously, and returns the
+owned count. Its node is `polymerdiagonalwalls.command.probe`, as planned, which leaves the root
+literal out of kalic0re's `<modId>.command.<path>`. `scripts/layouts.sh build` forceloads the strip
+x 96..191, z 96..111, because 26.2 has no spawn chunks and a headless server loads nothing without a
+ticket. Every layout stands at y −53, the seeded flat world's surface.
+
+`scripts/layouts.sh check` probes every block of A–G and matches the table: A one (west wall
+owns it), B, C and D none, E one (`cobblestone_wall` owns it, partner `brick_wall`), F one. G gave
+sixteen, not the twelve this table first said: four five-wall runs sharing their corners are
+sixteen walls and sixteen diagonals. The table now says sixteen for G and for L.
+
+For F, `scripts/layouts.sh f-split` forces only chunk x 7. That leaves the owner's chunk x 9 at
+level 33 (full, not ticking) and the partner's chunk x 10 at level 34. Probe then printed the owner
+and "owns no diagonals"; forcing chunk x 10 gave "owns 1" on the next command. rcon joins a
+command's messages with no separator, so `check` counts diagonals by match, not by line.
 
 ## S3 — Arm displays — **planned**
 
