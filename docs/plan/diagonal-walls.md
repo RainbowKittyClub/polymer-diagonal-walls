@@ -28,8 +28,8 @@ and chunk lifecycle, both on S3), S6 (tall arms, on S3) and S7 → S8 (collision
 on S2 only). S9 (settings) needs S3 and S7. S10 (fence and pane arms) needs S3; S11 → S12
 (shulker columns, then slimes, for every family) need S10; S13 (mob collision for fences and panes)
 needs S7 and S10. S14 (PPB and Enderscape blocks) needs S6, S10 and S11. S15 (load and editors)
-needs S4, S5 and S11. S13 makes the feature complete for vanilla blocks, S14 for modded ones, and
-S16 ships it.
+needs S4, S5 and S11. S16 (Presence Footsteps) needs S11. S13 makes the feature complete for
+vanilla blocks, S14 for modded ones, and S17 ships it.
 
 ---
 
@@ -690,7 +690,23 @@ arms follow or only refresh on chunk reload.
 - WorldEdit edits update arms within a tick.
 - Axiom's behaviour is recorded.
 
-## S16 — Live deploy — **planned**
+## S16 — Silence Presence Footsteps on the columns — **in progress**
+
+**Build.** Presence Footsteps 1.13.3, in the user's client pack, maps `minecraft:shulker` to
+`squeakywood` in its `golemmap.json`. So pressing against any collision column plays a wooden
+footstep, at walls and panes as much as at fences. Vanilla clients play nothing there.
+
+PF reads that file from every resource pack in priority order: `ResourceUtils` walks
+`getResourceStack`, and `Lookup` puts each entry into one map, so the highest pack wins. Its
+silent value is `NOT_EMITTER` (`SoundsKey.of`). Ship `assets/presencefootsteps/config/golemmap.json`
+holding `{"minecraft:shulker": "NOT_EMITTER"}` among the mod's assets, and register them with
+`PolymerResourcePackUtils.addModAssets`. Survival requires the pack, so every PF player gets it.
+
+**Done when.** In the user's client with Presence Footsteps, walking into the wall, fence and pane
+diagonals of layouts A, H and J plays no footstep from the columns, while the ground still sounds
+normal.
+
+## S17 — Live deploy — **planned**
 
 **Build.** Release 0.1.0, and deploy only after the user names the go-ahead. Copy the jar into
 survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/restart.sh survival
@@ -715,7 +731,7 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
   fences can take S14's item-display path instead, with the mod's own item definitions pointing at
   `minecraft:block/<wood>_fence_side`. Survival requires the pack, so that reaches every survival
   player. Settled by the user's look at layout H.
-- **Lobby install.** The lobby is a void world. Settled by the user before S16.
+- **Lobby install.** The lobby is a void world. Settled by the user before S17.
 - **Pane column height.** Default: three shulkers per column with lids at raw peek 52, which stand
   1.005 against a pane's 1.0: the lowest stack that reaches it. Two open shulkers stand 0.875 and
   three open ones 1.3125. Settled by the user's test on layout J.
@@ -916,6 +932,16 @@ The RKC Polymer fork changes none of this.
   tracking view (`ChunkMap.java:1127`), so leaving a chunk that stays loaded stops nothing. A bot
   2000 blocks from forced pen G kept all 16 arms. Unload, death, a level change or a disconnect
   still end it.
+
+## Reference: Known limitations
+
+Decided by the user on 2026-10-18 and kept as they are:
+
+- **Every diagonal wall keeps its post.** A straight diagonal run doesn't look continuous the way a
+  straight cardinal run does. Hiding the post would mean vanilla's post-less wall state, whose
+  shape is empty. A player then couldn't aim at that wall to mine it, pick it or place against it.
+- **S16 silences Presence Footsteps on every shulker,** not only the columns: End city shulkers
+  lose PF's wooden step too, for any player with the server pack.
 
 ## Reference: Lattice load
 
