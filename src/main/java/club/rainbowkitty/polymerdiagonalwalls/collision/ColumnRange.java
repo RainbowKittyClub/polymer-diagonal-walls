@@ -17,6 +17,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import org.jspecify.annotations.Nullable;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -33,9 +34,10 @@ import club.rainbowkitty.polymerdiagonalwalls.settings.DiagonalSettings;
 /**
  * Which players get which owner's columns. A client ticks every shulker and slime it holds as a
  * mob, so a player gets a {@link ColumnSite}'s columns only while it tracks the site's chunk
- * within {@link DiagonalSettings#COLLISION_RANGE} of it. Once a second each level's players are
- * offered the sites near them, building their holders, and released from those they have left; a
- * holder nobody watches any more is dropped. Server thread only.
+ * within {@link DiagonalSettings#COLLISION_RANGE} of it. A new site is offered to nearby players
+ * at the end of the tick it appears in, and once a second each level's players are offered the
+ * sites near them, building their holders, and released from those they have left; a holder
+ * nobody watches any more is dropped. Server thread only.
  */
 public final class ColumnRange {
     // A watcher keeps its columns this much farther out, so one standing at the edge sees no churn.
@@ -44,20 +46,33 @@ public final class ColumnRange {
 
     private static final Map<ServerLevel, Long2ObjectMap<Set<ColumnSite>>> SITES =
             new IdentityHashMap<>();
+    // Sites indexed this tick, offered to nearby players at its end.
+    private static final Set<ColumnSite> FRESH = Collections.newSetFromMap(new IdentityHashMap<>());
+    // Removed sites with a holder, by origin, dropped at the tick's end unless a rebuild of the
+    // same owner adopts the holder first.
+    private static final Long2ObjectMap<ColumnSite> RELEASED = new Long2ObjectOpenHashMap<>();
     private static int ticksSinceRecheck;
 
     private ColumnRange() {
     }
 
-    /** Hooks the once-a-second recheck, and forgets a level's sites when it unloads. */
+    /**
+     * Hooks the end-of-tick work and the once-a-second recheck, and forgets a level's sites when it
+     * unloads.
+     */
     public static void register() {
         ServerTickEvents.END_SERVER_TICK.register(ColumnRange::tick);
-        ServerLevelEvents.UNLOAD.register((server, level) -> SITES.remove(level));
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> SITES.clear());
+        ServerLevelEvents.UNLOAD.register((server, level) -> forgetLevel(level));
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            SITES.clear();
+            FRESH.clear();
+            RELEASED.clear();
+        });
     }
 
     /**
-     * Indexes the site of an owner's diagonals, attached at {@code origin} in {@code chunk}.
+     * Indexes the site of an owner's diagonals, attached at {@code origin} in {@code chunk}. It
+     * takes over the holder of a site released this tick that put the same columns there.
      *
      * @return the site, to hand back to {@link #removeSite}; {@code null} when the diagonals'
      *         families put nothing on them
@@ -72,12 +87,27 @@ public final class ColumnRange {
                 .computeIfAbsent(chunk.getPos().pack(),
                         key -> Collections.newSetFromMap(new IdentityHashMap<>()))
                 .add(site);
+        long originKey = originKey(origin);
+        ColumnSite released = RELEASED.get(originKey);
+        if (released != null && site.adopt(released)) {
+            RELEASED.remove(originKey);
+        }
+        FRESH.add(site);
         return site;
     }
 
-    /** Forgets a site and drops its holder, when its owner's arms go. */
+    /**
+     * Forgets a site when its owner's arms go. Its holder is dropped at the end of the tick,
+     * unless a rebuild of the owner takes it over first.
+     */
     public static void removeSite(ColumnSite site) {
-        site.drop();
+        FRESH.remove(site);
+        if (site.holder() != null) {
+            ColumnSite previous = RELEASED.put(originKey(site.origin()), site);
+            if (previous != null) {
+                previous.drop();
+            }
+        }
         Long2ObjectMap<Set<ColumnSite>> chunks = SITES.get(site.level());
         if (chunks == null) {
             return;
@@ -108,12 +138,31 @@ public final class ColumnRange {
                 }
             }
         }
+        // A released holder may still be adopted this tick.
+        for (ColumnSite site : RELEASED.values()) {
+            holders.add(site.holder());
+        }
         holders.forEach(action);
         return holders.size();
     }
 
-    // Counts server ticks, rechecking every level once RECHECK_TICKS have passed.
+    // Drops the holders no rebuild took over, serves this tick's new sites, and rechecks every
+    // level once RECHECK_TICKS have passed.
     private static void tick(MinecraftServer server) {
+        if (!RELEASED.isEmpty()) {
+            RELEASED.values().forEach(ColumnSite::drop);
+            RELEASED.clear();
+        }
+        if (!FRESH.isEmpty()) {
+            double range = DiagonalSettings.collisionRange(server);
+            List<ColumnSite> fresh = List.copyOf(FRESH);
+            FRESH.clear();
+            for (ColumnSite site : fresh) {
+                for (ServerPlayer player : site.level().players()) {
+                    serve(player, site, range);
+                }
+            }
+        }
         if (++ticksSinceRecheck < RECHECK_TICKS) {
             return;
         }
@@ -149,10 +198,7 @@ public final class ColumnRange {
             }
         }
         for (ServerPlayer player : level.players()) {
-            // Polymer stops a dying player watching; serving it would undo that.
-            if (!player.isDeadOrDying()) {
-                serveNearby(player, chunks, range);
-            }
+            serveNearby(player, chunks, range);
         }
     }
 
@@ -170,13 +216,19 @@ public final class ColumnRange {
                     continue;
                 }
                 for (ColumnSite site : List.copyOf(inChunk)) {
-                    if (within(player, site.level(), site.origin(), range)
-                            && VirtualEntityUtils.isPlayerTracking(player, site.chunk())) {
-                        // A new holder takes every admitted tracker as it attaches.
-                        site.build().startWatching(player.connection);
-                    }
+                    serve(player, site, range);
                 }
             }
+        }
+    }
+
+    // Gives player site's columns when it is alive, within range blocks and tracks the chunk.
+    // Polymer stops a dying player watching; serving it would undo that.
+    private static void serve(ServerPlayer player, ColumnSite site, double range) {
+        if (!player.isDeadOrDying() && within(player, site.level(), site.origin(), range)
+                && VirtualEntityUtils.isPlayerTracking(player, site.chunk())) {
+            // A new holder takes every admitted tracker as it attaches.
+            site.build().startWatching(player.connection);
         }
     }
 
@@ -185,5 +237,23 @@ public final class ColumnRange {
             ServerPlayer player, ServerLevel level, Vec3 position, double range) {
         return player.level() == level
                 && player.position().distanceToSqr(position) <= range * range;
+    }
+
+    // Forgets an unloading level's sites, dropping any holder still waiting for adoption.
+    private static void forgetLevel(ServerLevel level) {
+        SITES.remove(level);
+        FRESH.removeIf(site -> site.level() == level);
+        RELEASED.values().removeIf(site -> {
+            if (site.level() != level) {
+                return false;
+            }
+            site.drop();
+            return true;
+        });
+    }
+
+    // The released-site key of a holder position: its block.
+    private static long originKey(Vec3 origin) {
+        return BlockPos.containing(origin).asLong();
     }
 }

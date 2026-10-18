@@ -68,4 +68,26 @@ public final class ColumnSite {
             holder = null;
         }
     }
+
+    // Takes other's holder when it stands its columns where this site would: the same chunk and
+    // origin, and per diagonal the same family, west end and direction. Ends' states don't move
+    // a column, so a rebuilt owner keeps the entities its watchers already hold.
+    boolean adopt(ColumnSite other) {
+        if (holder != null || other.holder == null || other.holder.getAttachment() == null
+                || chunk != other.chunk || !origin.equals(other.origin)
+                || diagonals.size() != other.diagonals.size()) {
+            return false;
+        }
+        for (int i = 0; i < diagonals.size(); i++) {
+            Diagonal mine = diagonals.get(i);
+            Diagonal theirs = other.diagonals.get(i);
+            if (mine.family() != theirs.family() || mine.dz() != theirs.dz()
+                    || !mine.west().equals(theirs.west())) {
+                return false;
+            }
+        }
+        holder = other.holder;
+        other.holder = null;
+        return true;
+    }
 }
