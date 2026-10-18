@@ -885,7 +885,7 @@ calls its API at runtime. After a dev-server restart the served pack carried the
 user rejoined in the Kalic0 client, walked into the diagonals, and reported on 2026-10-18 that "the
 sound is better".
 
-## S17 — Axiom edits — **in progress**
+## S17 — Axiom edits — **done**
 
 **Build.** Axiom 6.0.3 writes nearly all of its edits straight into the chunk section, so neither
 the S4 hook nor any vanilla update sees them. That covers pastes, fills, every tool, and undo and
@@ -927,6 +927,31 @@ and panes with Axiom's tools. Arms appear and go within a tick each time. The de
 0 mixin failures both with Axiom and without it. A diagonal pair written straight into its section
 gains its arm after a random tick of either end, and clearing both ends that way drops the arm
 within one pass of the re-check.
+
+### As built
+
+Built on `wf/axiom` and merged as `b38499f`. The deltas from the Build text:
+
+- **Two mixin classes, not one.** `AxiomSetBufferMixin` and `AxiomSetBlockMixin` are both
+  `@Pseudo`. Mixin checks `require` once per target class, so one mixin aimed at both would fail
+  on whichever class lacks each method. Both hand off to `lifecycle/SectionWrites`.
+- **Random-tick fallback.** `WallBlockMixin` and `CrossCollisionBlockMixin` make the families
+  random-tick, and their `randomTick` calls `ArmUpdates.recheck`. `WeatheringCopperBarsBlock`
+  already random-ticks, so it gets a hook at the head of its own `randomTick`. Fully oxidized
+  copper bars never random-tick, so only the sweep covers their removal.
+- **Index sweep.** `lifecycle/IndexSweep` checks 256 holders per level at the start of each drain,
+  and a stale owner goes into the drain's dirty set.
+
+Testing showed:
+
+- Reflection calls into Axiom's own handlers moved arms at the next drain. That covered a buffered
+  pair, a 1,792-block clear and stone written above a pair (the arm turned tall).
+- Pairs written straight into the section, bypassing every hook, healed in about 26 s on average
+  at random tick speed 3.
+- On the 32,640-holder lattice the sweep took 53–67 µs a tick, a full pass 6.4 s. Server ticks
+  ran 1.2 ms (P99 2.3 ms).
+- Without Axiom the server boots with 0 mixin failures and two harmless class-not-found warnings.
+- On 2026-10-18 the user confirmed in-world that every Axiom function updates the arms.
 
 ## S18 — Fence arms without the corner post — **done**
 
