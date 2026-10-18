@@ -20,6 +20,12 @@ public interface DiagonalFamily {
     /** Whether two admitted states would join each other, as vanilla joins them cardinally. */
     public boolean joins(BlockState a, BlockState b);
 
+    /**
+     * Whether this family's arms stand full height when covered from above, as wall sides do;
+     * {@link DiagonalRule#tall} answers false for every diagonal of a family without them.
+     */
+    public boolean hasTallArms();
+
     /** How this family's arms are drawn. */
     public ArmVisual visual();
 }

@@ -3,8 +3,11 @@
   "commands.polymerdiagonalwalls.probe.not_member": "%s at %s, %s, %s takes no diagonals",
   "commands.polymerdiagonalwalls.probe.owns_none": "%s at %s, %s, %s owns no diagonals",
   "commands.polymerdiagonalwalls.probe.owns": "%s at %s, %s, %s owns %s:",
-  "commands.polymerdiagonalwalls.probe.south_east": "south-east to %s at %s, %s, %s",
-  "commands.polymerdiagonalwalls.probe.north_east": "north-east to %s at %s, %s, %s",
+  "commands.polymerdiagonalwalls.probe.south_east": "south-east to %s at %s, %s, %s, %s arm",
+  "commands.polymerdiagonalwalls.probe.north_east": "north-east to %s at %s, %s, %s, %s arm",
+  "commands.polymerdiagonalwalls.probe.low": "low",
+  "commands.polymerdiagonalwalls.probe.tall": "tall",
+  "commands.polymerdiagonalwalls.probe.full": "full-height",
   "commands.polymerdiagonalwalls.rebuild.done": "Refreshed %s blocks in %s loaded chunks; this dimension now has %s holders and %s arms",
   "commands.polymerdiagonalwalls.stats.level": "%s: %s holders, %s arms",
   "commands.polymerdiagonalwalls.stats.total": "Total: %s holders, %s arms"

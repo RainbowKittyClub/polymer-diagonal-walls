@@ -13,8 +13,8 @@ import net.minecraft.world.phys.Vec3;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.Diagonal;
 
 /**
- * A wall diagonal's arm: one block display of the owner's material as a straight low bar, placed
- * by {@link ArmTransform}.
+ * A wall diagonal's arm: one block display of the owner's material as a straight bar, low or
+ * tall as {@link Diagonal#tall()} says, placed by {@link ArmTransform}.
  */
 public final class WallArmVisual implements ArmVisual {
     // 18 px: the shortest bar whose corners stay inside both posts is 1.082.
@@ -22,17 +22,20 @@ public final class WallArmVisual implements ArmVisual {
 
     @Override
     public List<VirtualElement> elements(Diagonal diagonal, Vec3 origin) {
-        BlockDisplayElement arm = new BlockDisplayElement(barState(diagonal.westState()));
-        ArmTransform.apply(arm, diagonal, origin, LENGTH, ArmTransform.LOW_HEIGHT);
+        boolean tall = diagonal.tall();
+        BlockDisplayElement arm = new BlockDisplayElement(barState(diagonal.westState(), tall));
+        ArmTransform.apply(arm, diagonal, origin, LENGTH,
+                tall ? ArmTransform.FULL_HEIGHT : ArmTransform.LOW_HEIGHT);
         return List.of(arm);
     }
 
-    // Two low sides along z: the side model has no south face, so the join at z 8 shows no seam.
-    private static BlockState barState(BlockState owner) {
+    // Two sides along z: the side model has no south face, so the join at z 8 shows no seam.
+    private static BlockState barState(BlockState owner, boolean tall) {
+        WallSide side = tall ? WallSide.TALL : WallSide.LOW;
         return owner.getBlock().defaultBlockState()
                 .setValue(WallBlock.UP, false)
-                .setValue(WallBlock.NORTH, WallSide.LOW)
-                .setValue(WallBlock.SOUTH, WallSide.LOW)
+                .setValue(WallBlock.NORTH, side)
+                .setValue(WallBlock.SOUTH, side)
                 .setValue(WallBlock.EAST, WallSide.NONE)
                 .setValue(WallBlock.WEST, WallSide.NONE)
                 .setValue(WallBlock.WATERLOGGED, false);

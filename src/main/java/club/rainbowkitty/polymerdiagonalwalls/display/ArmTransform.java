@@ -18,13 +18,19 @@ public final class ArmTransform {
     public static final float EPSILON = 1f / 512f;
     /** The y scale of an arm whose model ends below the post top, such as a low wall side. */
     public static final float LOW_HEIGHT = 1 - EPSILON;
+    /**
+     * The y scale of an arm whose model runs to the post top. Its top ends ε above the post top,
+     * where a stacked arm's bottom starts, so it neither z-fights the post nor leaves a gap.
+     */
+    public static final float FULL_HEIGHT = 1;
 
     // Toward the owner on each axis, so the entity's light cell is the owner, never opaque.
     private static final float NUDGE = 1f / 16f;
     // 128 blocks at 100% entity distance.
     private static final float VIEW_RANGE = 2f;
     private static final float CULL_WIDTH = 1.25f;
-    private static final float CULL_HEIGHT = 1f;
+    // A full-height arm reaches 1 + ε.
+    private static final float CULL_HEIGHT = 1.0625f;
     private static final float EIGHTH_TURN = (float) (Math.PI / 4);
 
     private ArmTransform() {
@@ -35,7 +41,7 @@ public final class ArmTransform {
      * holder it joins.
      *
      * @param length the model's z scale, the arm's length in blocks
-     * @param height the model's y scale, such as {@link #LOW_HEIGHT}
+     * @param height the model's y scale: {@link #LOW_HEIGHT} or {@link #FULL_HEIGHT}
      */
     public static void apply(
             BlockDisplayElement arm, Diagonal diagonal, Vec3 origin, float length, float height) {
