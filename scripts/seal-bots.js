@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 'use strict'
-// The diagonal-walls plan's S7 player leg and S8 lure leg, with one mineflayer bot on a running dev
-// server whose layouts are built (scripts/layouts.sh build). Both use pen G's north-east gap, between
-// the walls at (137, 101) and (138, 102), whose corner point is (138, 102).
+// The diagonal-walls plan's S7 and S13 player legs and S8 lure leg, with one mineflayer bot on a
+// running dev server whose layouts are built (scripts/layouts.sh build). Corner and lure use pen
+// G's north-east gap, between the walls at (137, 101) and (138, 102), whose corner point is
+// (138, 102).
 //
 //   corner: the bot walks into that gap's corner from inside and from outside. Passes when the
 //     server holds it where the corner boxes sit (players keep vanilla shapes), with no forced move
 //     and no "moved wrongly" logged.
+//   cross: the bot walks straight through fence gap H and pane gap J, both wide enough for it under
+//     vanilla shapes. Passes when the server lets it through with no forced move and no "moved
+//     wrongly"; on a client, the columns stop it, and mineflayer collides with no entity.
 //   lure: a chicken starts in the pen's centre with the bot outside the gap holding wheat seeds,
 //     once per /diagonals debug seal mode in --modes (default on,boxes,off). With "on" the chicken
 //     should stop inside, off the corner; "boxes" (no pathfinding rule) pins it in the corner, and
@@ -15,7 +19,8 @@
 // Run with the sandbox off (RCON and the bot use loopback). The bot joins as 26.1, so run/mods
 // needs ViaFabric and ViaBackwards (rkc/mods/artifacts/run/mods has both).
 //
-//   node scripts/seal-bots.js [--mod-dir <worktree>] [--legs corner,lure] [--modes on,boxes,off]
+//   node scripts/seal-bots.js [--mod-dir <worktree>] [--legs corner,cross,lure]
+//       [--modes on,boxes,off]
 const fs = require('node:fs')
 const path = require('node:path')
 const { createRequire } = require('node:module')
@@ -24,7 +29,7 @@ const { parseArgs } = require('node:util')
 const { values: opts } = parseArgs({
   options: {
     'mod-dir': { type: 'string', default: path.resolve(__dirname, '..') },
-    legs: { type: 'string', default: 'corner,lure' },
+    legs: { type: 'string', default: 'corner,cross,lure' },
     modes: { type: 'string', default: 'on,boxes,off' },
     version: { type: 'string', default: '26.1' },
     seconds: { type: 'string', default: '15' }
@@ -58,6 +63,11 @@ const BOXES = [
   { minX: 138, maxX: 138.25, minZ: 102, maxZ: 102.25 }
 ]
 const PLAYER_HALF_WIDTH = 0.3
+// Fence pair H and pane pair J, each running south-east to its corner point.
+const CROSSINGS = [
+  { name: 'fence H', corner: { x: 145, z: 101 } },
+  { name: 'pane J', corner: { x: 165, z: 101 } }
+]
 
 const results = []
 function record (leg, ok, detail) {
@@ -80,6 +90,7 @@ async function main () {
   try {
     await cmd(`gamemode creative ${BOT}`)
     if (legs.includes('corner')) await cornerLeg(bot, logFile)
+    if (legs.includes('cross')) await crossLeg(bot, logFile)
     if (legs.includes('lure')) {
       for (const mode of opts.modes.split(',')) await lureLeg(bot, mode)
     }
@@ -126,6 +137,32 @@ async function cornerLeg (bot, logFile) {
     record(`corner ${side.name}`, overlaps > 0 && wrong === 0 && forced === 0,
       `server holds the bot at local ${local}, over ${overlaps} corner box(es); ` +
       `${forced} forced move(s), ${wrong} "moved wrongly"`)
+  }
+}
+
+// Walks the bot from the north-east straight along each crossing's line through its corner point.
+async function crossLeg (bot, logFile) {
+  await cmd('diagonals debug seal on')
+  for (const crossing of CROSSINGS) {
+    const { x, z } = crossing.corner
+    await teleport(bot, new Vec3(x + 1.2, FLOOR_Y, z - 1.2))
+    const wrongBefore = countWrongMoves(logFile)
+    const forcedBefore = bot.forced
+    await bot.lookAt(new Vec3(x - 3, FLOOR_Y + 1.62, z + 3), true)
+    bot.setControlState('forward', true)
+    await sleep(1200)
+    bot.setControlState('forward', false)
+    await sleep(1000)
+    const pos = await serverPosition(BOT)
+    // How far past the corner point the walk went, and how far it drifted off its line.
+    const past = ((x - pos.x) + (pos.z - z)) / Math.SQRT2
+    const drift = ((pos.x - x) + (pos.z - z)) / Math.SQRT2
+    const wrong = countWrongMoves(logFile) - wrongBefore
+    const forced = bot.forced - forcedBefore
+    record(`cross ${crossing.name}`,
+      past > 1 && Math.abs(drift) < 0.1 && wrong === 0 && forced === 0,
+      `server holds the bot ${past.toFixed(2)} past the corner point, ${drift.toFixed(3)} off ` +
+      `its line; ${forced} forced move(s), ${wrong} "moved wrongly"`)
   }
 }
 
