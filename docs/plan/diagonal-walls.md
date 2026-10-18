@@ -275,7 +275,7 @@ The vanilla client sees the same. Two unknowns get settled here: if arms run alo
 diagonal, flip θ in the reference; if the 45° faces shade visibly differently from the posts, note
 it in As built.
 
-## S4 — Live updates — **planned**
+## S4 — Live updates — **done**
 
 **Build.** `mixin/LevelChunkMixin` hooks `LevelChunk.setBlockState(BlockPos, BlockState, int)` at
 `RETURN` with a non-null return value, on server levels only. If the old or new state is a diagonal
@@ -298,7 +298,37 @@ Nothing reads another chunk inside `setBlockState`. That follows the same rule a
 
 An rcon place-and-break loop of 1000 rounds ends with `stats` equal to the layout total.
 
-## S5 — Chunk load and unload — **planned**
+### As built
+
+The hook is as planned, and passes on only a non-null return, the replaced state. It hands off to
+`lifecycle/ArmUpdates.blockChanged`, which marks P when its old or new state belongs to any family,
+not only walls, and marks `P.below()` the same way. The per-level set is a `LongOpenHashSet`
+behind a lock rather than a concurrent set. The drain gathers P and P + (−1, 0, ±1) for every
+mark into one set first, so a position marked many times in a tick is refreshed once.
+
+`scripts/layouts.sh live` checks each step through a datapack it writes into the dev world. The
+pack samples `stats` at the start of each tick's scheduled functions, before that tick's drain.
+Every step moved the arm count at the first sample after the tick that changed the wall:
+
+- Breaking and placing either end of A, and walling A's shared neighbour into vanilla's L and
+  clearing it: a command changes the wall between ticks, and the arm moved in the next tick's drain.
+- A sticky piston under an owner pushing it up off its partner's level and pulling it back, and TNT
+  at power 2.5 one block west of an owner: the wall changed inside a tick, and the arm moved in that
+  same tick's drain. The TNT left the partner standing.
+
+A mineflayer bot watched the same steps. For command changes it received the arm's spawn or destroy
+0–1 ms after the block update. For changes inside a tick, the arm came first. The chunk pass that
+broadcasts block changes runs before block events, entities and block entities
+(`ServerLevel.java:401`, `:404`, `:450`), so their changes go out in the next tick's pass. The arm
+came 47–50 ms ahead for the TNT and the piston's return. For the push, the moved block sends no
+update (`PistonBaseBlock.java:309`, flags 324), so the client animates from the block event, which
+arrives in the same tick as the destroy.
+
+`scripts/layouts.sh loop 1000` broke and replaced A's partner and one G wall per round over one rcon
+connection, pausing 0–30 ms at random after each command. All 4000 commands changed a block over
+61 s, and `stats` then read the layout total: 19 arms on 18 holders.
+
+## S5 — Chunk load and unload — **done**
 
 **Build.** `ServerChunkEvents.CHUNK_LOAD` (`(ServerLevel, LevelChunk, boolean)`,
 `fabric-lifecycle-events-v1` 4.1.9) only enqueues the chunk position. At drain, if `getChunkNow`
@@ -319,6 +349,41 @@ in an older neighbour chunk whose partner was missing until now.
 - Layout F works when either chunk is loaded first (teleport in from both sides).
 - With every layout chunk unloaded, `stats` reads 0.
 - `isn't loaded` (`ChunkAttachment.java:56`) never appears in the log.
+
+### As built
+
+Built as planned, with three additions:
+
+- **Return to FULL.** A chunk demoted from FULL to INACCESSIBLE stays in memory, and its completed
+  FULL future is never cleared (`GenerationChunkHolder.java:164`). Promoting it again therefore runs
+  no FULL task and raises no `CHUNK_LOAD`. A `FULL_CHUNK_STATUS_CHANGE` out of INACCESSIBLE queues
+  the chunk as well. `scripts/layouts.sh f-return` demotes F's partner chunk, rebuilds so the
+  owner's arm goes, then forces the partner again. The arm came back; with the listener disabled
+  it stayed gone (18 arms drawn, 19 diagonals seen).
+- **Waiting for the chunk.** A queued chunk that `getChunkNow` cannot return yet is retried for up
+  to 20 drains, in case the load event fires before FULL is visible. It never happened on the dev
+  server.
+- **Unload.** `CHUNK_UNLOAD` queues the drop as well, and the drain drops before it scans, so a
+  chunk that unloads and loads again within one tick is rebuilt. An unload cancels a queued load.
+
+C2ME 0.4.1-beta.1, on survival, replaces the chunk system and raises these events itself
+(`LifecycleEventInvoker`): `CHUNK_LOAD` only the first time a chunk reaches FULL, and
+`FULL_CHUNK_STATUS_CHANGE` on every promotion and demotion. Each path that raises one of the three
+events asserts the main thread first (its `ServerAccessible` and `ReadFromDisk` statuses), so that
+version raises none of them off the server thread.
+
+Checked on the dev server, with forceload standing in for a player except where a bot is named:
+
+- `scripts/layouts.sh unload` (`forceload remove all`): `stats` read 0 within a second, and
+  `reload` brought back all 19 arms.
+- After each of three restarts, `stats` read 19 with no `rebuild`. `scripts/layouts.sh drawn`, which
+  compares arms drawn with the diagonals `probe` sees across every layout block, matched.
+- `f-first owner` forces chunk x 7, so F's owner chunk is FULL and its partner's is not.
+  `f-first partner` forces chunk x 12, the reverse. In both, drawn matched seen with one chunk and
+  again once the other loaded, and F's owner then owned 1.
+- A bot stood at the layouts with nothing forced and saw 19 arms. Teleported 2000 blocks east, it
+  held no arm and `stats` read 0 within a second. Teleported back, it saw 19 again.
+- `isn't loaded` appears in none of the run's logs. The mod never calls `ChunkAttachment.of`.
 
 ## S6 — Tall arms and stacked diagonal walls — **planned**
 
