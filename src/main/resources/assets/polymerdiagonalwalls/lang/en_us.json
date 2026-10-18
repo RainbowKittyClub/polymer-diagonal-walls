@@ -15,5 +15,15 @@
   "commands.polymerdiagonalwalls.stats.level": "%s: %s holders, %s arms",
   "commands.polymerdiagonalwalls.stats.total": "Total: %s holders, %s arms",
   "commands.polymerdiagonalwalls.debug.columns.shown": "Collision columns are now visible, on %s holders",
-  "commands.polymerdiagonalwalls.debug.columns.hidden": "Collision columns are hidden again, on %s holders"
+  "commands.polymerdiagonalwalls.debug.columns.hidden": "Collision columns are hidden again, on %s holders",
+  "gamerule.polymerdiagonalwalls.enabled": "Diagonal Walls Enabled",
+  "gamerule.polymerdiagonalwalls.enabled.description": "Walls, fences and panes standing corner to corner join with a diagonal arm",
+  "gamerule.polymerdiagonalwalls.seal_gaps": "Seal Diagonal Gaps",
+  "gamerule.polymerdiagonalwalls.seal_gaps.description": "Mobs, items and projectiles cannot pass between diagonal posts",
+  "gamerule.polymerdiagonalwalls.view_range": "Diagonal Arm View Range",
+  "gamerule.polymerdiagonalwalls.view_range.description": "Blocks within which players see diagonal arms, at 100% entity distance",
+  "gamerule.polymerdiagonalwalls.collision_range": "Diagonal Collision Range",
+  "gamerule.polymerdiagonalwalls.collision_range.description": "Blocks within which players are sent the collision of diagonal arms",
+  "config.polymerdiagonalwalls.show_arms": "Show Diagonal Arms",
+  "config.polymerdiagonalwalls.show_arms.description": "Draw the arms between walls, fences and panes standing corner to corner"
 }
