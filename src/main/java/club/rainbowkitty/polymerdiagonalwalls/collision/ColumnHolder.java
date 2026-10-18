@@ -14,9 +14,9 @@ import net.minecraft.world.phys.Vec3;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.Diagonal;
 
 /**
- * The client collision of one owner's diagonals: every seat {@link ShulkerColumns} gives them.
- * Immutable once built, apart from {@link #setVisible}; its {@link ColumnSite} builds and drops
- * it. Only players {@link ColumnRange} admits watch it.
+ * The client collision of one owner's diagonals: every seat {@link ShulkerColumns} and
+ * {@link GroundSlimes} give them. Immutable once built, apart from {@link #setVisible}; its
+ * {@link ColumnSite} builds and drops it. Only players {@link ColumnRange} admits watch it.
  */
 public final class ColumnHolder extends ElementHolder {
     private final List<Seat> seats;
@@ -27,6 +27,7 @@ public final class ColumnHolder extends ElementHolder {
         boolean visible = ColumnDebug.visible();
         for (Diagonal diagonal : diagonals) {
             built.addAll(ShulkerColumns.seats(diagonal, origin, visible));
+            built.addAll(GroundSlimes.seats(diagonal, origin, visible));
         }
         this.seats = List.copyOf(built);
         for (Seat seat : this.seats) {

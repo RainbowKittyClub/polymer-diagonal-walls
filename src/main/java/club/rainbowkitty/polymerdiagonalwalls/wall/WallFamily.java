@@ -30,8 +30,9 @@ public final class WallFamily implements DiagonalFamily {
             TagKey.create(Registries.BLOCK, PolymerDiagonalWalls.id("diagonal_walls"));
 
     // Two 0.25 columns between the post corners at +-0.25, three open shulkers tall: the 1.5 of a
-    // wall's collision.
-    private static final ColumnLayout COLUMNS = new ColumnLayout(List.of(-0.125, 0.125), 0.25, 3);
+    // wall's collision. Each slime spans a post corner to the corner point.
+    private static final ColumnLayout COLUMNS = new ColumnLayout(
+            List.of(-0.125, 0.125), 0.25, 3, List.of(-0.125, 0.125), 0.25);
 
     private final ArmVisual visual = new WallArmVisual();
 

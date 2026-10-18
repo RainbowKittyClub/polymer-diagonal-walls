@@ -15,23 +15,33 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
  *        the outermost touch the post corners
  * @param columnWidth each shulker's box width, in blocks
  * @param shulkersPerColumn shulkers stacked in each column, each seated on the one below
+ * @param slimeOffsets the centre of each ground slime, which pushes a player off the columns'
+ *        corners
+ * @param slimeWidth each slime's box width and height, in blocks
  */
-public record ColumnLayout(List<Double> columnOffsets, double columnWidth, int shulkersPerColumn) {
+public record ColumnLayout(
+        List<Double> columnOffsets,
+        double columnWidth,
+        int shulkersPerColumn,
+        List<Double> slimeOffsets,
+        double slimeWidth) {
     // Open, a shulker's box is its scaled height times 1 + peek (Shulker.java:215, :264).
     private static final double OPEN_HEIGHT_FACTOR = 2;
 
     public ColumnLayout {
         columnOffsets = List.copyOf(columnOffsets);
+        slimeOffsets = List.copyOf(slimeOffsets);
         if (shulkersPerColumn < 0) {
             throw new IllegalArgumentException(
                     "ColumnLayout.shulkersPerColumn must be >= 0, got " + shulkersPerColumn);
         }
         requireScale("columnWidth", columnWidth, EntityTypes.SHULKER);
+        requireScale("slimeWidth", slimeWidth, EntityTypes.SLIME);
     }
 
     /** Whether this layout puts nothing on a diagonal. */
     public boolean isEmpty() {
-        return columnOffsets.isEmpty() || shulkersPerColumn == 0;
+        return (columnOffsets.isEmpty() || shulkersPerColumn == 0) && slimeOffsets.isEmpty();
     }
 
     /** The scale attribute that makes a shulker {@link #columnWidth} wide. */
@@ -42,6 +52,14 @@ public record ColumnLayout(List<Double> columnOffsets, double columnWidth, int s
     /** How much height one open shulker adds to a column, and so the step between seats. */
     public double shulkerHeight() {
         return shulkerScale() * EntityTypes.SHULKER.getHeight() * OPEN_HEIGHT_FACTOR;
+    }
+
+    /**
+     * The scale attribute that makes a slime {@link #slimeWidth} wide. Riders keep the default
+     * size, 1, whose box is the entity type's (AbstractCubeMob.java:75, :259).
+     */
+    public double slimeScale() {
+        return slimeWidth / EntityTypes.SLIME.getWidth();
     }
 
     // The scale attribute clamps silently, so a width outside its range would mis-size the box.
