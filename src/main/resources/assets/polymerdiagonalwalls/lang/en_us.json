@@ -15,5 +15,10 @@
   "commands.polymerdiagonalwalls.stats.level": "%s: %s holders, %s arms",
   "commands.polymerdiagonalwalls.stats.total": "Total: %s holders, %s arms",
   "commands.polymerdiagonalwalls.debug.columns.shown": "Collision columns are now visible, on %s holders",
-  "commands.polymerdiagonalwalls.debug.columns.hidden": "Collision columns are hidden again, on %s holders"
+  "commands.polymerdiagonalwalls.debug.columns.hidden": "Collision columns are hidden again, on %s holders",
+  "commands.polymerdiagonalwalls.debug.arms.none": "%s, %s, %s owns no arms",
+  "commands.polymerdiagonalwalls.debug.arms.owns": "%s, %s, %s draws %s arms with %s elements:",
+  "commands.polymerdiagonalwalls.debug.arms.item": "item display %s, view range %s",
+  "commands.polymerdiagonalwalls.debug.arms.block": "block display %s, view range %s",
+  "commands.polymerdiagonalwalls.debug.arms.other": "other element %s"
 }

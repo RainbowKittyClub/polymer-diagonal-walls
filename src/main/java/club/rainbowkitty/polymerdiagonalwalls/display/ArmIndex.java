@@ -10,6 +10,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import org.jspecify.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -88,6 +89,12 @@ public final class ArmIndex {
     /** Forgets a chunk's holders, for its unload: Polymer has already destroyed them. */
     public static void dropChunk(ServerLevel level, ChunkPos chunk) {
         chunks(level).remove(chunk.pack());
+    }
+
+    /** The holder of the arms {@code pos} owns, or null when it owns none. */
+    public static @Nullable ArmHolder holderAt(ServerLevel level, BlockPos pos) {
+        Long2ObjectMap<ArmHolder> owners = chunks(level).get(ChunkPos.pack(pos));
+        return owners == null ? null : owners.get(pos.asLong());
     }
 
     /** How many attached holders and arms {@code level} has. */
