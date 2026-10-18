@@ -11,8 +11,8 @@ the 26.2 client jar. Polymer claims against `libs/polymer` at `9a3e8150` (0.17.5
 `rkc/forks/polymer-patch-bundle` `rkc/26.2` `1758312`, kalic0re against `main` `7a4fdbb` (0.31.0),
 and WorldEdit against the bytecode of the live `worldedit-mod-7.4.4.jar`. Shulker and slime
 collision was tried with real entities on a vanilla 26.2 scratch server on 2026-10-18, judged by
-the user in a vanilla client (see "Reference: Collision spike"). Seven things are unverified, and
-each is flagged in the stage that settles it:
+the user in a vanilla client (see "Reference: Collision spike"). Seven things were unverified when
+this plan was written. Each is flagged in the stage that settles it, whose As built has the answer:
 
 - the display transform's rotation sign and how 45° faces shade;
 - whether Lithium's collision sweep calls the context form of `getCollisionShape`;
@@ -25,11 +25,11 @@ each is flagged in the stage that settles it:
 
 Stage order: S1 → S2 → S3. Then three branches can be built in any order: S4 and S5 (live updates
 and chunk lifecycle, both on S3), S6 (tall arms, on S3) and S7 → S8 (collision, then pathfinding,
-on S2 only). S9 (settings) needs S3 and S7. S10 (fence and pane arms) needs S3; S11 → S12
-(shulker columns, then slimes, for every family) need S10; S13 (mob collision for fences and panes)
-needs S7 and S10. S14 (PPB and Enderscape blocks) needs S6, S10 and S11. S15 (load and editors)
-needs S4, S5 and S11. S16 (Presence Footsteps) needs S11. S13 makes the feature complete for
-vanilla blocks, S14 for modded ones, and S17 ships it.
+on S2 only). S9 (settings) is skipped. S10 (fence and pane arms) needs S3; S11 → S12 (shulker
+columns, then slimes, for every family) need S10; S13 (mob collision for fences and panes) needs S7
+and S10. S14 (PPB and Enderscape blocks) needs S6, S10 and S11. S15 (load and editors) needs S4, S5
+and S11. S16 (Presence Footsteps) needs S11, and S17 (Axiom edits) needs S4. S13 makes the feature
+complete for vanilla blocks and S14 for modded ones; S18 ships it.
 
 ---
 
@@ -141,13 +141,12 @@ and `layouts.sh modded build` builds them in the row z 116..117.
 
 The user does the visual checks in the dev client, and gets a short "what you'll see" before each
 round. A vanilla 26.2 client (no Fabric) joins the dev server for the no-mod view. That works
-because the mod adds no registry entries. Mob, item, player-movement, settings and modded-arm checks
-live in the mod repo: `scripts/seal-legs.sh` (items, arrows and pens over rcon, with `execute if
-entity` counts), `scripts/seal-bots.js`, `scripts/columns-check.js`, `scripts/settings-check.js`
-and `scripts/modded-arms.js` (mineflayer, borrowing `scripts/loadtest`'s modules), with the Via jar
-in `run/mods` (house pattern). S15's load and WorldEdit legs are `scripts/lattice-check.js`, on
-lattices `layouts.sh lattice build` makes, with spark and WorldEdit in `run/mods`. From S7 on,
-`run/mods` also holds
+because the mod adds no registry entries. Mob, item, player-movement and modded-arm checks live in
+the mod repo: `scripts/seal-legs.sh` (items, arrows and pens over rcon, with `execute if entity`
+counts), `scripts/seal-bots.js`, `scripts/columns-check.js` and `scripts/modded-arms.js`
+(mineflayer, borrowing `scripts/loadtest`'s modules), with the Via jar in `run/mods` (house
+pattern). S15's load and WorldEdit legs are `scripts/lattice-check.js`, on lattices `layouts.sh
+lattice build` makes, with spark and WorldEdit in `run/mods`. From S7 on, `run/mods` also holds
 `lithium-fabric-0.25.3+mc26.2`, the build on survival. A stage isn't done until its "Done when" has
 been observed, so a failure at stage N points at stage N, not the ones before it.
 
@@ -257,7 +256,7 @@ level 33 (full, not ticking) and the partner's chunk x 10 at level 34. Probe the
 and "owns no diagonals"; forcing chunk x 10 gave "owns 1" on the next command. rcon joins a
 command's messages with no separator, so `check` counts diagonals by match, not by line.
 
-## S3 — Arm displays — **in progress**
+## S3 — Arm displays — **done**
 
 **Build.** `display/ArmHolder extends ElementHolder` holds one `BlockDisplayElement` per owned
 diagonal (one or two):
@@ -294,6 +293,28 @@ prints the holder and arm counts.
 The vanilla client sees the same. Two unknowns get settled here: if arms run along the wrong
 diagonal, flip θ in the reference; if the 45° faces shade visibly differently from the posts, note
 it in As built.
+
+### As built
+
+Built as planned, with the arm drawn per family (`DiagonalFamily.visual()`) so that S14 could swap
+in item displays:
+
+- `WallArmVisual` sets the transform directly: translation T − R·S·c, left rotation
+  `rotationY(dz·45°)` and scale (1 − ε, 1 − ε, 1.125), with ε = 1/512.
+- `ArmHolder` is immutable and replaced on any change; `ArmIndex` keys holders by level, chunk and
+  owner.
+- `ChunkAttachment`'s constructor takes a `Vec3`, not a `BlockPos`: `Vec3.atBottomCenterOf(owner)`.
+
+The ε lift showed that S6's tall arm would sit exactly on the post top, so S6's Build text now says
+to lift tall arms by ε/2.
+
+`/diagonals rebuild 200` reported 18 holders and 19 arms, the layout total, and a repeat changed
+nothing. A bot received all 19 arms, and again on a second join with no rebuild, so holders start
+watching on chunk send. On the wire, A's arm stood at (100.9375, −53, 100.9375), turned 45°, at view
+range 2 and cull size 1.25 × 1, as `cobblestone_wall[north=low,south=low,up=false]`; E's arm took
+the owner's cobblestone. JOML's `rotationY(+45°)` sends +z to (0.707, 0, 0.707), and a numeric check
+put all eight arm-end corners inside both posts on both diagonals. In the user's in-world pass on
+2026-10-18 everything looked good, so θ stands and the 45° faces need no note.
 
 ## S4 — Live updates — **done**
 
@@ -405,7 +426,7 @@ Checked on the dev server, with forceload standing in for a player except where 
   held no arm and `stats` read 0 within a second. Teleported back, it saw 19 again.
 - `isn't loaded` appears in none of the run's logs. The mod never calls `ChunkAttachment.of`.
 
-## S6 — Tall arms and stacked diagonal walls — **in progress**
+## S6 — Tall arms and stacked diagonal walls — **done**
 
 **Build.** `DiagonalRule.tall(level, a, b, dx, dz)` returns true in either of two cases:
 
@@ -426,7 +447,25 @@ exactly on the post top, z-fighting where the arm end sits inside the post. Lift
   arms.
 - Breaking the upper wall drops the lower arm to low within a tick.
 
-## S7 — Solid gap for non-players — **in progress**
+### As built
+
+`DiagonalRule.tall` reads the blocks above both ends. It is true when they are joined walls of the
+same family, or when both of their down faces cover the corner strip: eight 2×2 px boxes, stepped
+1 px from the centre to the corner. `probe` prints "tall arm" or "low arm".
+
+The ε/2 lift was not built. With y scale 1 − ε it leaves a tall arm's top at 1 − ε/2, under a
+stacked low arm's bottom at 1 + ε: a gap of 1.5ε (about 0.003) in the face that must be continuous.
+A tall arm keeps the ε lift with y scale 1 instead, so it spans ε to 1 + ε, off the post top and
+flush with the arm above. Every wall arm's cull height is now 1.0625, shared with tall arms.
+
+`layouts.sh check` gave M four diagonals with the lower two tall, N and O tall, and P, Q and R low.
+On the wire, M's lower arm was `north=tall,south=tall` at y scale 1.0 and its upper arm
+`north=low,south=low` at 0.998. Clearing the wall above M's owner, or the slab over N's, and running
+`rebuild` turned the arm low; putting it back turned it tall. That ran before S4 merged, so the drop
+within a tick, which rides S4's `P.below()` mark, rests on the user's in-world pass on 2026-10-18,
+in which everything looked good.
+
+## S7 — Solid gap for non-players — **done**
 
 **Build.** `mixin/WallBlockMixin` hooks `WallBlock.getCollisionShape(BlockState, BlockGetter,
 BlockPos, CollisionContext)` (`WallBlock.java:96`) at `RETURN`. It applies when the context is an
@@ -451,7 +490,34 @@ walls; the legs below run with Lithium installed to settle that.
 3. An arrow shot into a gap hits the corner.
 4. A mineflayer bot walks into the corner where the box sits, and the log shows no `moved wrongly`.
 
-## S8 — Pathfinding stops routing through sealed gaps — **in progress**
+### As built
+
+Built as planned, with three changes:
+
+- The hook is a MixinExtras `@ModifyReturnValue`, which composes with other mods, not a plain
+  `RETURN` inject.
+- Sealed shapes are cached per vanilla shape instance and mask, not per state and mask.
+- Partners are read through `getChunkForCollisions` (`Level.java:766`: FULL, never a load).
+
+The player rule counts indirect passengers (`Entity.countPlayerPassengers`, `Entity.java:3557`), so
+a vehicle carrying a player at any depth keeps vanilla shapes. Lithium 0.25.3's collision sweep
+calls the context form with `CollisionContext.of(entity)` and the `Level`, which settles that
+unknown. Every leg ran with Lithium loaded:
+
+- Pen G kept 25 of 30 through `tick sprint 24000`, twice: every chicken, baby cow and cat. All five
+  rabbits jumped out over the posts, so item 1 fails as written; the open decision "Rabbits over a
+  sealed diagonal" holds that. With the seal off, 25 got out.
+- Items slid into A's gap stop dead against the corner boxes; vanilla items have no bounce. With the
+  seal off they pass.
+- Both arrows hit a corner box and drop to the floor on the shooter's side, because
+  `AbstractArrow.shouldFall` asks with no entity and sees the vanilla shape. With the seal off they
+  fly through.
+- `seal-bots.js corner` held a bot over both corner boxes, from inside and from outside, with no
+  forced move and no `moved wrongly`.
+
+In the user's in-world pass on 2026-10-18 everything looked good, and the user passed the stage.
+
+## S8 — Pathfinding stops routing through sealed gaps — **done**
 
 **Build.** `mixin/WalkNodeEvaluatorMixin` hooks `isDiagonalValid(Node, Node, Node)`
 (`WalkNodeEvaluator.java:167`) at `HEAD`, cancellable. When both side nodes are `FENCE` and
@@ -464,31 +530,42 @@ overwrites this method, `devserver.sh … mixins` will show it.
 It stops at the wall instead of walking into the corner again and again, and the user watches both
 cases: with the mixin disabled, it jitters in the corner.
 
-## S9 — Settings — **in progress**
+### As built
 
-**Build.** Use kalic0re `config` 0.31.0 (`ModConfig.create`, `ModConfig.java:61`), shade
-`rule,config,text,command`, and follow polytrains `rule/ModGameRules.java:24` as the worked example.
+The hook is a `@ModifyReturnValue` on `isDiagonalValid` that ANDs vanilla's answer with
+`!SealedPaths.crossesSealedGap`, not a cancellable `HEAD` inject. It reads states only when vanilla
+said yes and both side nodes are `FENCE` at the same y, and it extends `NodeEvaluator` to reach the
+protected `currentContext`. Lithium's `WalkNodeEvaluatorMixin` leaves `isDiagonalValid` alone, and
+the mixin applied with no failures.
 
-| Scope | Key | Kind | Default |
-|---|---|---|---|
-| server | `enabled` | toggle | true |
-| server | `seal_gaps` | toggle (S7 and S8) | true |
-| server | `view_range` | range 64–512 blocks | 128 |
-| player | `show_arms` | toggle | true |
+`seal-bots.js lure` started a chicken at pen G's centre, with the bot outside holding wheat seeds,
+nearest a sealed gap. Repeated runs gave identical numbers:
 
-`ArmHolder.startWatching` refuses a player whose `show_arms` is false, following
-`VoidDeepslateBlock.java:312`. A change re-checks the holders in that player's tracked chunks.
+- sealed: the chicken stopped 0.99 from the corner point and stood still;
+- corner boxes without the path rule: it walked into the corner and stayed pinned against both
+  boxes, 0.283 from the corner point, with no jitter server-side;
+- seal off: it walked through the gap.
 
-**Done when.**
+Over 3000 ticks, 10 rabbits in G lost 2 and 3 with the path rule, against 6 and 7 without it. In
+the user's in-world pass on 2026-10-18 everything looked good.
 
-- `/settings polymerdiagonalwalls set enabled false` removes every arm within a tick, and pen G
-  leaks again; `true` restores both.
-- With `view_range 64`, arms vanish past 64 blocks at 100% entity distance.
-- One player's `show_arms false` hides arms for them only, and a second player still sees them.
-- On a dev server without rkcore-common, `/gamerule polymerdiagonalwalls:enabled false` does the
-  same.
+## S9 — Settings — **skipped**
 
-## S10 — Fence and pane diagonals — **in progress**
+Built on `wf/settings` and merged, then removed at the user's request on 2026-10-18, before any
+deploy. Through kalic0re `config` 0.31.0, it gave the mod four server settings with fallback game
+rules (`enabled`, `seal_gaps`, `view_range` and `collision_range`) and the player setting
+`show_arms`.
+
+Without it, arms show for every player, gaps are always sealed and paths always refused.
+Block-display arms keep view range 2.0 (128 blocks), and columns go to watchers within 8 blocks;
+both are constants. With no game rules and no per-player values, the mod stores nothing in
+`game_rules.dat` or player data.
+
+To revive it, reapply the `wf/settings` commits `6c829c1`, `4175794`, `38212d6`, `095c5ad`,
+`0c108e9` and `85728c3` (merged as `d507422`), plus `54b66cb`, which keeps item-display arms at
+their overlay's range under `view_range`.
+
+## S10 — Fence and pane diagonals — **done**
 
 **Build.** Add two families to `DiagonalRule`, each joining only what vanilla joins cardinally:
 
@@ -513,7 +590,25 @@ middle column stands, so the look and the collision agree there.
 - In the dev client, from every angle, no bar or panel end shows outside a post.
 - The user has judged the corner post on layout H and the stretched glass on layout J.
 
-## S11 — Client collision columns — **in progress**
+### As built
+
+`fence/FenceFamily` admits a `FenceBlock` in `diagonal_fences` and joins through `connectsTo`;
+`pane/PaneFamily` admits an `IronBarsBlock` in `diagonal_panes` and joins through `attachsTo`.
+Vanilla has no tag for every pane, so `diagonal_panes` holds `#minecraft:bars`, `glass_pane`, the 16
+stained panes and an optional `#c:glass_panes`. `attachsTo` joins any two `IronBarsBlock`s, so a
+stained pane joins iron bars; an oak fence joins a spruce one, and bars beside a wall get no arm.
+
+Fence and pane arms (`display/CrossArmVisual`) stand full height, ε to 1 + ε. That also keeps a pane
+arm's top off the pane post's top face, which has no cullface. No stacked panes or bars were built:
+a block display draws every face, while vanilla hides those between stacked panes
+(`IronBarsBlock.skipRendering`), so a stacked pane arm may show its edges at each block boundary.
+
+`layouts.sh check` gave H 1, I 5, J 1, K 0 and L 16. On the wire, fence arms are
+`oak_fence[north=true,south=true]` at scale (0.998, 1.0, 1.1875) and pane arms `glass_pane` at
+(0.998, 1.0, 1.375), with the fence translation matching T computed by hand. In the user's in-world
+pass on 2026-10-18 everything looked good.
+
+## S11 — Client collision columns — **done**
 
 **Build.** `collision/ShulkerColumns` gives each diagonal columns of three shulkers at scale 0.25,
 fully open, 1.5 tall, with the invisible flag set. Each family places them at offsets from the
@@ -556,7 +651,33 @@ collision check at `ServerGamePacketListenerImpl.java:1156`.
 - nothing rubber-bands;
 - after a relog, and after teleporting away and back, every column still stops a jump.
 
-## S12 — Slimes that ease players along the arm — **in progress**
+### As built
+
+The entities are as planned: each shulker spawns 0.5 below its seat, so no peek resend is needed,
+and the scale goes out as `ClientboundUpdateAttributesPacket(int, Collection<AttributeInstance>)`
+after the spawn packets. A non-ticking holder sends element data only from `tick()`, which settles
+S3's open question; `/diagonals debug columns` calls it. Four changes:
+
+- **Lazy holders.** A `ColumnHolder` is built only once a player tracking the chunk comes within 8
+  blocks, and dropped at the first recheck with no watcher left; release is past 10 blocks, the
+  recheck every 20 ticks. On a 2048-wall checkerboard, building every column up front cost 74.7 MB
+  of heap, about 18.7 KB per diagonal; lazy, it costs 5.7 MB with no player near.
+- **Range.** `collision_range` was to be an S9 setting; 8 blocks is a constant.
+- **Rebuilds.** A site released in a tick keeps its holder until `END_SERVER_TICK`, and a rebuild
+  of the same owner adopts it (`cf30633`). Before that, a bot 5.5 blocks from A lost all 8 riders
+  when A's owner was rebuilt, and a new diagonal's columns came 400 ms after its arm. After it, the
+  bot kept 8 of 8 with the same entity ids, and new columns came with the arm.
+- **Panes.** Four columns of 0.21875, three shulkers each, at peek 52: the lowest peek whose stack
+  reaches 1.0 (1.005 tall). `ColumnLayout` derives it from a column height.
+
+`columns-check.js` passed 34/34. A bot 5.5 blocks from A got 6 shulkers, 2 slimes and 8 vehicles,
+every rider at its seat at scale 0.25, peek 100, invisible and silent. H gave 9, 2 and 11, J 12, 2
+and 14, and pen L 144, 32, 176 and 16 arms. Columns came back after a relog and a 2000-block trip.
+A client opens a new shulker's lid over about 1 s (`Shulker.updatePeekAmount`), so columns stand
+low that long after they arrive, which the server can't change. In the user's in-world pass on
+2026-10-18 everything looked good.
+
+## S12 — Slimes that ease players along the arm — **done**
 
 **Build.** Two virtual slimes per diagonal sit on the ground, each spanning a post corner to the
 corner point:
@@ -573,6 +694,18 @@ Size-0 slimes deal no damage (`AbstractCubeMob.java:250`).
 
 **Done when.** The user finds walking along layout I and a five-wall run in layout G with S12 as
 smooth as the spike's L13, and finds that both catch on the column corners with S12 off.
+
+### As built
+
+Built at the planned seats and sizes, each slime invisible and silent on its own vehicle: size 1,
+its 0.52 box scaled to the planned width. `columns-check.js` found 2 per wall, fence and pane
+diagonal. The push runs the other way from the Build text: on the client only the local player is
+pushable (`EntitySelector.java:38`), so the slime's own `pushEntities` moves the player.
+
+Fence and pane slimes overlap the notches between columns. The wall slimes are the wall columns'
+own squares, so by the geometry a player's box never overlaps them and they push nothing; a slime
+centred on the corner point would. The comparison with S12 off needs a build without slimes and
+wasn't run. In the user's in-world pass on 2026-10-18 everything looked good.
 
 ## S13 — Mob collision for fences and panes — **done**
 
@@ -613,7 +746,7 @@ Checked with Lithium 0.25.3 in `run/mods`:
 - After the change, wall gap A's items and arrows came to rest where they did before, pen G kept 25
   of 30 (the five rabbits out, as in S7), and the corner leg passed.
 
-## S14 — PPB and Enderscape walls, fences and bars — **in progress**
+## S14 — PPB and Enderscape walls, fences and bars — **done**
 
 **Build.** The rule already admits PPB's and Enderscape's diagonals. Every one is a vanilla
 `WallBlock`, `FenceBlock` or `IronBarsBlock`, in the vanilla tags; Enderscape's etched magnia walls
@@ -663,7 +796,33 @@ Enderscape veiled fence and `shadoline_bars`. Each one:
 - meets the mod's overlay without a seam, and a modded fence arm shows no corner post;
 - blocks a player at every scale, as S11 does for vanilla blocks.
 
-## S15 — Load and editor check — **in progress**
+### As built
+
+Built as planned, with two departures:
+
+- **Models.** A uvlock part shows the patch's pre-rotated `_uvlock_<x>_<y>` copy unturned, not the
+  plain `_side` model. An arm's two halves overlap on coplanar faces, and plain models turned 180°
+  would put different texels there (open decision "Modded arm models"). Non-uvlock parts, such as
+  the bars' `side` and `side_alt`, show their plain model with factorytools' rotation.
+- **Gate.** The view range comes from a table keyed by the mod whose class draws the owner's
+  overlay: 3.0 for polymer-patch-bundle, 100 for enderscape-polymer-patch. Only those two bridge
+  their models, so the table is also the gate: a stand-in from any other Polymer mod keeps a block
+  display and logs one warning per block.
+
+An arm's parts are the multipart entries that apply to the arm state but not to the same state
+joined nowhere, which drops fence posts and the bars' post ends. Parts sit i/4096 apart, as the
+overlays shift theirs. A bar state starts from the owner's state, so etched magnia keeps its
+polarity. `/diagonals debug arms <pos>` lists an owner's elements. A modded arm is two item
+displays, so a watcher gets 18 entities per wall diagonal, 24 per fence and 30 per bars.
+
+On a 90-mod dev server with survival's Polymer set, `layouts.sh modded check` passed S–Y, and
+`modded-arms.js` passed 35/35: each pair sent two item displays with the expected `item_model` and
+the overlay's view range, and no block display. `layouts.sh modded sweep` placed all 44 modded ids
+in pairs, and each drew one item-display arm with no fallback warning. A restart kept all 100
+holders and 102 arms, and A–R were unchanged. In the user's in-world pass on 2026-10-18 everything
+looked good.
+
+## S15 — Load and editor check — **done**
 
 **Build.** Nothing new unless the numbers ask for it. The stress layout is a checkerboard of walls
 16 chunks square: every wall has four diagonal partners, so each owns two arms, which comes to 256
@@ -690,6 +849,17 @@ arms follow or only refresh on chunk reload.
 - WorldEdit edits update arms within a tick.
 - Axiom's behaviour is recorded.
 
+### As built
+
+The numbers are in "Reference: Lattice load". The only new code is the drain cap: a 5 ms budget
+per drain (`eeb8520`), checked before each chunk scan and owner refresh. It brought the worst
+arrival tick in the wall lattice from 78.3 ms to 16.9–32.2 ms. The teleport out still reaches 48–85
+ms in Polymer's per-player holder list, which the open decision "Holders per owner" covers.
+
+WorldEdit's `//set`, `//paste`, `//undo` and `//redo` moved the arms at the next drain, within a
+tick. Client FPS passed in the user's test on 2026-10-18. In the same test, Axiom 6.0.3's edits left
+arms behind; S17 handles them.
+
 ## S16 — Silence Presence Footsteps on the columns — **done**
 
 **Build.** Presence Footsteps 1.13.3, in the user's client pack, maps `minecraft:shulker` to
@@ -713,7 +883,7 @@ calls its API at runtime. After a dev-server restart the served pack carried the
 user rejoined in the Kalic0 client, walked into the diagonals, and reported on 2026-10-18 that "the
 sound is better".
 
-## S17 — Live deploy — **planned**
+## S18 — Live deploy — **planned**
 
 **Build.** Release 0.1.0, and deploy only after the user names the go-ahead. Copy the jar into
 survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/restart.sh survival
@@ -738,7 +908,7 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
   fences can take S14's item-display path instead, with the mod's own item definitions pointing at
   `minecraft:block/<wood>_fence_side`. Survival requires the pack, so that reaches every survival
   player. Settled by the user's look at layout H.
-- **Lobby install.** The lobby is a void world. Settled by the user before S17.
+- **Lobby install.** The lobby is a void world. Settled by the user before S18.
 - **Pane column height.** Default: three shulkers per column with lids at raw peek 52, which stand
   1.005 against a pane's 1.0: the lowest stack that reaches it. Two open shulkers stand 0.875 and
   three open ones 1.3125. Settled by the user's test on layout J.
@@ -988,8 +1158,9 @@ that tick's drain:
 An edit whose drain needs more than the budget spreads over ticks instead. While the wall lattice
 was rebuilt by `clone`, 16,384 walls in its last command, the slowest tick was 10.7 ms.
 
-Axiom 6.0.3's bytecode, not yet tried in a client: its bulk edits (`AxiomServerboundSetBuffer`)
-write `LevelChunkSection.setBlockState` directly, so S4's hook never sees them and arms should
-only follow when the chunk next loads. Its single-block packet (`AxiomServerboundSetBlock`) calls
-`ServerLevel.setBlock`, which the hook sees, on one path and writes the section on another.
+Axiom 6.0.3's bytecode: its bulk edits (`AxiomServerboundSetBuffer`) write
+`LevelChunkSection.setBlockState` directly, so S4's hook never sees them and arms should only follow
+when the chunk next loads. Its single-block packet (`AxiomServerboundSetBlock`) calls
+`ServerLevel.setBlock`, which the hook sees, on one path and writes the section on another. In the
+user's test on 2026-10-18, Axiom's edits left arms behind (S17).
 
