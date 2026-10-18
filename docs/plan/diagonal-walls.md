@@ -135,7 +135,7 @@ Column collision is also checked at reduced player size (`/attribute @s minecraf
 base set <s>`, down to the minimum 0.0625). A client draws no F3+B hitbox for an invisible entity
 (`EntityHitboxDebugRenderer.java:38`), so S11 adds an op command that shows the columns.
 
-## S1 — Scaffold `polywalls` — **in progress**
+## S1 — Scaffold `polywalls` — **done**
 
 **Build.** This folder holds only this plan, and `git clone` refuses a non-empty target, so move the
 plan aside first:
@@ -161,6 +161,28 @@ Answers for `setup.sh`: mod id `polywalls`, entry class `Polywalls`. Then:
 **Done when.** `./gradlew build` writes `build/libs/polywalls-0.1.0.jar`. `scripts/devserver.sh
 rkc/mods/polywalls start` boots with `polywalls` in the mod list and `… mixins` reports 0 failures.
 `./gradlew lintAll` in `scripts/lint` lints the new mod.
+
+### As built
+
+The user scaffolded the repo from the template as `rkc/mods/polymer-diagonal-walls` instead of the
+clone dance above: mod id `polymerdiagonalwalls`, entry class `PolymerDiagonalWalls`, Unlicense,
+dev port 25640 and rcon 25642 (not 25644/25646), all in the initial commit. The rest of the Build
+list then went in on top:
+
+- the example `content/` and `polymer/` packages, every `example_block` asset, loot table and
+  mineable tag, and the datagen source set with `enable_datagen`/`datagen_client` are gone, since
+  the mod needs no datagen;
+- bil is out of `fabric.mod.json` and `gradle.properties`, and so is
+  `fabric_permissions_api_version`, which only bil's block in the shared build reads;
+- `fabric.mod.json` depends on `polymer-core` and `polymer-virtual-entity` instead of suggesting
+  four Polymer modules, because the arms are virtual entities;
+- `polymer_version=0.17.5+26.2`, plus `kalic0re_version=0.31.0` and
+  `kalic0re_shared_packages=command,text` for S2's command gate and text.
+
+`./gradlew build` writes `build/libs/polymerdiagonalwalls-0.1.0.jar`; a dev-server boot lists
+`polymerdiagonalwalls 0.1.0` among 54 mods, with Polymer 0.17.5+26.2, and `mixins` reports none.
+The lint entry in `scripts/lint/build.gradle` and the `CLAUDE.md` row are workspace edits made
+outside this repo; `checkstyleTarget` on `src/main/java` passes.
 
 ## S2 — Diagonal rule and probe command — **planned**
 
