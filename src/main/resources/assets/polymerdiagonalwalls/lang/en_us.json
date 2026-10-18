@@ -19,5 +19,7 @@
   "commands.polymerdiagonalwalls.debug.arms.owns": "%s, %s, %s draws %s arms with %s elements:",
   "commands.polymerdiagonalwalls.debug.arms.item": "item display %s, view range %s",
   "commands.polymerdiagonalwalls.debug.arms.block": "block display %s, view range %s",
-  "commands.polymerdiagonalwalls.debug.arms.other": "other element %s"
+  "commands.polymerdiagonalwalls.debug.arms.other": "other element %s",
+  "commands.polymerdiagonalwalls.debug.arms.with_pack": ", for players with the server pack",
+  "commands.polymerdiagonalwalls.debug.arms.without_pack": ", for players without it"
 }
