@@ -3,6 +3,7 @@ package club.rainbowkitty.polymerdiagonalwalls.diagonal;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 
+import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnLayout;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmVisual;
 
 /**
@@ -22,4 +23,7 @@ public interface DiagonalFamily {
 
     /** How this family's arms are drawn. */
     public ArmVisual visual();
+
+    /** Where this family's client collision stands along each diagonal. */
+    public ColumnLayout columns();
 }

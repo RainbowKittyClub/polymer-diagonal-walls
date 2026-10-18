@@ -1,5 +1,7 @@
 package club.rainbowkitty.polymerdiagonalwalls.wall;
 
+import java.util.List;
+
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.tags.TagKey;
@@ -9,6 +11,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.WallSide;
 
 import club.rainbowkitty.polymerdiagonalwalls.PolymerDiagonalWalls;
+import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnLayout;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalFamily;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalRule;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmVisual;
@@ -25,6 +28,10 @@ public final class WallFamily implements DiagonalFamily {
      */
     public static final TagKey<Block> DIAGONAL_WALLS =
             TagKey.create(Registries.BLOCK, PolymerDiagonalWalls.id("diagonal_walls"));
+
+    // Two 0.25 columns between the post corners at +-0.25, three open shulkers tall: the 1.5 of a
+    // wall's collision.
+    private static final ColumnLayout COLUMNS = new ColumnLayout(List.of(-0.125, 0.125), 0.25, 3);
 
     private final ArmVisual visual = new WallArmVisual();
 
@@ -54,5 +61,10 @@ public final class WallFamily implements DiagonalFamily {
     @Override
     public ArmVisual visual() {
         return visual;
+    }
+
+    @Override
+    public ColumnLayout columns() {
+        return COLUMNS;
     }
 }
