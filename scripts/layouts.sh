@@ -577,7 +577,16 @@ cmd_f_return() {
     rc "diagonals rebuild 512" >/dev/null
     echo "partner chunk demoted:"
     await_f "owns no diagonals" || return 1
-    check_drawn || return 1
+    # Probe cannot read the demoted chunks x 10 and 11, whose holders stay attached, so only F's
+    # arm may go.
+    local drawn want=$(($(layout_total) - 1))
+    drawn="$(stats_arms)"
+    if [[ "$drawn" == "$want" ]]; then
+        echo "ok   $drawn arms drawn, only F's gone"
+    else
+        echo "FAIL $drawn arms drawn, want $want"
+        return 1
+    fi
     rc "forceload add 160 96" >/dev/null
     echo "partner chunk FULL again:"
     await_f "owns 1" || return 1
