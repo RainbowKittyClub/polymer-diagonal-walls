@@ -724,6 +724,10 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
   the patch's pre-rotated `_uvlock_<x>_<y>` copy unturned, as the overlays draw it, so the overlap
   carries the same texels from both halves, as a block display of a vanilla arm does. Parts also
   sit 1/4096 apart, as the overlays shift theirs. Settled by the user's look at layouts S–Y.
+- **View range of modded arms.** S9's `view_range` sets every block-display arm; an item-display
+  arm (S14) keeps its overlay's range, 3.0 for PPB and 100 for enderscape-patch, so it vanishes
+  with the overlay it meets. The alternative is the smaller of the two. Default: the overlay's
+  range. Settled by the user.
 - **Rabbits over a sealed diagonal.** A rabbit that bumps into something jumps 1.71 high, or 2.25
   from a standstill (`Rabbit.java:153`, `:167`). It lands on a post or a corner box at 1.5 and hops
   down on the far side. In S7's sealed pen G, every chicken, baby cow and cat stayed through
