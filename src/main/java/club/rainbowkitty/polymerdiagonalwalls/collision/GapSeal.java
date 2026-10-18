@@ -1,20 +1,15 @@
 package club.rainbowkitty.polymerdiagonalwalls.collision;
 
-import org.jspecify.annotations.Nullable;
-
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.EntityCollisionContext;
 
-import club.rainbowkitty.polymerdiagonalwalls.settings.DiagonalSettings;
-
 /**
  * Whether diagonal gaps are sealed, and for whom. Sealing adds {@link CornerBoxes} for every
- * entity but players, and {@link SealedPaths} keeps walking mobs from routing into the boxes. The
- * {@code seal_gaps} setting switches both; a debug switch can turn the routing half off alone.
+ * entity but players, and {@link SealedPaths} keeps walking mobs from routing into the boxes. A
+ * debug switch can turn the routing half off alone.
  */
 public final class GapSeal {
     private static volatile boolean paths = true;
@@ -22,12 +17,12 @@ public final class GapSeal {
     private GapSeal() {
     }
 
-    /** Whether walking mobs on {@code server} stop routing between diagonal posts. */
-    public static boolean paths(@Nullable MinecraftServer server) {
-        return paths && server != null && DiagonalSettings.sealsGaps(server);
+    /** Whether walking mobs stop routing between diagonal posts. */
+    public static boolean paths() {
+        return paths;
     }
 
-    /** Sets the debug switch: whether pathfinding avoids sealed gaps while they are sealed. */
+    /** Sets the debug switch: whether pathfinding avoids sealed gaps. */
     public static void setPaths(boolean sealPaths) {
         paths = sealPaths;
     }
@@ -44,7 +39,6 @@ public final class GapSeal {
         Entity entity = entityContext.getEntity();
         return entity != null && !(entity instanceof Player)
                 && !(entity.isVehicle() && entity.countPlayerPassengers() > 0)
-                && entity.level() instanceof ServerLevel level
-                && DiagonalSettings.sealsGaps(level.getServer());
+                && entity.level() instanceof ServerLevel;
     }
 }

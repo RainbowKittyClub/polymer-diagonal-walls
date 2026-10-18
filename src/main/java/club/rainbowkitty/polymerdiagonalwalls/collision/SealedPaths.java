@@ -1,8 +1,5 @@
 package club.rainbowkitty.polymerdiagonalwalls.collision;
 
-import org.jspecify.annotations.Nullable;
-
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.PathType;
@@ -21,13 +18,11 @@ public final class SealedPaths {
 
     /**
      * Whether a diagonal step whose two side nodes are {@code first} and {@code second} crosses a
-     * sealed gap on {@code server}. Reads states through {@code context}, which never loads a
-     * chunk.
+     * sealed gap. Reads states through {@code context}, which never loads a chunk.
      */
-    public static boolean crossesSealedGap(@Nullable MinecraftServer server,
-            PathfindingContext context, Node first, Node second) {
-        if (first.type != PathType.FENCE || second.type != PathType.FENCE || first.y != second.y
-                || !GapSeal.paths(server)) {
+    public static boolean crossesSealedGap(PathfindingContext context, Node first, Node second) {
+        if (!GapSeal.paths() || first.type != PathType.FENCE || second.type != PathType.FENCE
+                || first.y != second.y) {
             return false;
         }
         int dx = second.x - first.x;

@@ -12,9 +12,9 @@ import club.rainbowkitty.polymerdiagonalwalls.collision.GapSeal;
 
 /**
  * {@code /diagonals debug paths <on|off>}: whether walking mobs route around sealed gaps, so a
- * pathfinding check can run against sealed gaps both ways; {@code seal_gaps} switches the seal
- * itself. Gated on {@code polymerdiagonalwalls.command.debug.paths}, op level 2 as fallback;
- * {@link DebugCommand} holds it.
+ * pathfinding check can run against sealed gaps both ways. Gated on
+ * {@code polymerdiagonalwalls.command.debug.paths}, op level 2 as fallback; {@link DebugCommand}
+ * holds it.
  */
 public final class PathsDebugCommand {
     private static final String KEY = "commands.polymerdiagonalwalls.debug.paths.";

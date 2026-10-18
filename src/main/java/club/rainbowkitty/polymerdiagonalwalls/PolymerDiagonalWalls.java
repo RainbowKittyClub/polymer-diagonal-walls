@@ -16,7 +16,6 @@ import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
 import club.rainbowkitty.polymerdiagonalwalls.fence.FenceFamily;
 import club.rainbowkitty.polymerdiagonalwalls.lifecycle.ArmUpdates;
 import club.rainbowkitty.polymerdiagonalwalls.pane.PaneFamily;
-import club.rainbowkitty.polymerdiagonalwalls.settings.DiagonalSettings;
 import club.rainbowkitty.polymerdiagonalwalls.wall.WallFamily;
 
 /** Mod entrypoint: diagonal arms between walls, fences and panes standing corner to corner. */
@@ -51,7 +50,6 @@ public class PolymerDiagonalWalls implements ModInitializer {
         // Ships assets/presencefootsteps/config/golemmap.json: Presence Footsteps plays
         // "squeakywood" for any shulker, so every collision column sounded like a wooden fence.
         PolymerResourcePackUtils.addModAssets(MOD_ID);
-        DiagonalSettings.register();
         WallFamily.register();
         FenceFamily.register();
         PaneFamily.register();
