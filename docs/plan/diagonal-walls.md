@@ -131,10 +131,11 @@ seeds. Test layouts get built by `scripts/layouts.sh` in the mod repo: rcon `set
 
 The user does the visual checks in the dev client, and gets a short "what you'll see" before each
 round. A vanilla 26.2 client (no Fabric) joins the dev server for the no-mod view. That works
-because the mod adds no registry entries. Mob, item and player-movement checks live in the mod
-repo: `scripts/seal-legs.sh` (items, arrows and pens over rcon, with `execute if entity` counts),
-`scripts/seal-bots.js` and `scripts/columns-check.js` (mineflayer, borrowing `scripts/loadtest`'s
-modules), with the Via jar in `run/mods` (house pattern). From S7 on, `run/mods` also holds
+because the mod adds no registry entries. Mob, item, player-movement and settings checks live in
+the mod repo: `scripts/seal-legs.sh` (items, arrows and pens over rcon, with `execute if entity`
+counts), `scripts/seal-bots.js`, `scripts/columns-check.js` and `scripts/settings-check.js`
+(mineflayer, borrowing `scripts/loadtest`'s modules), with the Via jar in `run/mods` (house
+pattern). From S7 on, `run/mods` also holds
 `lithium-fabric-0.25.3+mc26.2`, the build on survival. A stage isn't done until its "Done when" has
 been observed, so a failure at stage N points at stage N, not the ones before it.
 
@@ -451,7 +452,7 @@ overwrites this method, `devserver.sh … mixins` will show it.
 It stops at the wall instead of walking into the corner again and again, and the user watches both
 cases: with the mixin disabled, it jitters in the corner.
 
-## S9 — Settings — **planned**
+## S9 — Settings — **in progress**
 
 **Build.** Use kalic0re `config` 0.31.0 (`ModConfig.create`, `ModConfig.java:61`), shade
 `rule,config,text,command`, and follow polytrains `rule/ModGameRules.java:24` as the worked example.
