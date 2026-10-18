@@ -15,8 +15,9 @@ import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnDebug;
 /**
  * {@code /diagonals debug}: {@code columns} shows or hides the collision columns' shulkers and
  * slimes for everyone, so F3+B can draw their boxes, and returns the holders changed;
- * {@code paths} is {@link PathsDebugCommand}. Each child is gated on its own
- * {@code polymerdiagonalwalls.command.debug.<child>} node, op level 2 as fallback.
+ * {@code paths} is {@link PathsDebugCommand} and {@code arms} {@link ArmsDebugCommand}. Each child
+ * is gated on its own {@code polymerdiagonalwalls.command.debug.<child>} node, op level 2 as
+ * fallback.
  */
 public final class DebugCommand {
     private static final String KEY = "commands.polymerdiagonalwalls.debug.columns.";
@@ -29,12 +30,14 @@ public final class DebugCommand {
         Predicate<CommandSourceStack> columnsGate = PolymerDiagonalWalls.permissions()
                 .require("debug.columns", PermissionLevel.GAMEMASTERS);
         LiteralArgumentBuilder<CommandSourceStack> paths = PathsDebugCommand.node();
+        LiteralArgumentBuilder<CommandSourceStack> arms = ArmsDebugCommand.node();
         return Commands.literal("debug")
-                .requires(columnsGate.or(paths.getRequirement()))
+                .requires(columnsGate.or(paths.getRequirement()).or(arms.getRequirement()))
                 .then(Commands.literal("columns")
                         .requires(columnsGate)
                         .executes(DebugCommand::toggleColumns))
-                .then(paths);
+                .then(paths)
+                .then(arms);
     }
 
     // Tells the whole op channel, since the change shows for every player.

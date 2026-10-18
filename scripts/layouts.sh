@@ -18,6 +18,13 @@
 #   scripts/layouts.sh f-return            # F's partner chunk demoted and promoted again
 #   scripts/layouts.sh drawn               # arms drawn against the diagonals the rule sees
 #
+# Modded walls, fences and bars (S14), on a dev server with survival's mod set:
+#
+#   scripts/layouts.sh modded build        # clear the modded row, forceload it, build S-Y
+#   scripts/layouts.sh modded check        # probe each, then each owner's arm elements and models
+#   scripts/layouts.sh modded sweep        # every modded wall, fence and bars in run/mods as a pair
+#   scripts/layouts.sh modded clear        # empty the row again, so stats and drawn see A-R only
+#
 # MOD_DIR (default: this checkout) picks the dev server. Every layout stands on the seeded flat
 # world's surface, y=-53, in the chunk row z 96..111 at x >= 100, away from spawn.
 set -uo pipefail
@@ -153,6 +160,63 @@ DESCRIBE[R]="A with a top slab above each wall; low"
 BLOCKS[R]="188 100 cobblestone_wall;189 101 cobblestone_wall"
 BLOCKS[R]+=";188 100 smooth_stone_slab[type=top] 1;189 101 smooth_stone_slab[type=top] 1"
 EXPECT[R]=1
+
+# S-Y: S14's modded diagonals in the row z 116..118, for a dev server with survival's mod set.
+# Not in ORDER, since a server without those mods can't place them. Each lists the item models its
+# arm's elements show and the view range of the patch overlay they match.
+MODDED_ORDER=(S T U V W X Y)
+MODDED_STRIP=(96 112 191 127)
+declare -A MODELS RANGE
+
+DESCRIBE[S]="two terrestria volcanic rock walls corner to corner"
+BLOCKS[S]="100 116 terrestria:volcanic_rock_wall;101 117 terrestria:volcanic_rock_wall"
+EXPECT[S]=1
+MODELS[S]="terrestria:-/block/volcanic_rock_wall_side_uvlock_0_0"
+MODELS[S]+=" terrestria:-/block/volcanic_rock_wall_side_uvlock_0_180"
+RANGE[S]=3.0
+
+DESCRIBE[T]="two Enderscape mirestone walls corner to corner"
+BLOCKS[T]="104 116 enderscape:mirestone_wall;105 117 enderscape:mirestone_wall"
+EXPECT[T]=1
+MODELS[T]="enderscape:-/block/mirestone_wall_side_uvlock_0_0"
+MODELS[T]+=" enderscape:-/block/mirestone_wall_side_uvlock_0_180"
+RANGE[T]=100.0
+
+DESCRIBE[U]="two terrestria redwood fences corner to corner"
+BLOCKS[U]="108 116 terrestria:redwood_fence;109 117 terrestria:redwood_fence"
+EXPECT[U]=1
+MODELS[U]="terrestria:-/block/redwood_fence_side_uvlock_0_0"
+MODELS[U]+=" terrestria:-/block/redwood_fence_side_uvlock_0_180"
+RANGE[U]=3.0
+
+DESCRIBE[V]="two woods_and_mires pine fences corner to corner"
+BLOCKS[V]="112 116 woods_and_mires:pine_fence;113 117 woods_and_mires:pine_fence"
+EXPECT[V]=1
+MODELS[V]="woods_and_mires:-/block/pine_fence_side_uvlock_0_0"
+MODELS[V]+=" woods_and_mires:-/block/pine_fence_side_uvlock_0_180"
+RANGE[V]=3.0
+
+DESCRIBE[W]="two Enderscape veiled fences corner to corner"
+BLOCKS[W]="116 116 enderscape:veiled_fence;117 117 enderscape:veiled_fence"
+EXPECT[W]=1
+MODELS[W]="enderscape:-/block/veiled_fence_side_uvlock_0_0"
+MODELS[W]+=" enderscape:-/block/veiled_fence_side_uvlock_0_180"
+RANGE[W]=100.0
+
+DESCRIBE[X]="two Enderscape shadoline bars corner to corner"
+BLOCKS[X]="120 116 enderscape:shadoline_bars;121 117 enderscape:shadoline_bars"
+EXPECT[X]=1
+MODELS[X]="enderscape:-/block/shadoline_bars_side enderscape:-/block/shadoline_bars_side_alt"
+RANGE[X]=100.0
+
+DESCRIBE[Y]="S with stone above both walls; tall"
+BLOCKS[Y]="124 116 terrestria:volcanic_rock_wall;125 117 terrestria:volcanic_rock_wall"
+BLOCKS[Y]+=";124 116 minecraft:stone 1;125 117 minecraft:stone 1"
+EXPECT[Y]=1
+EXPECT_TALL[Y]=1
+MODELS[Y]="terrestria:-/block/volcanic_rock_wall_side_tall_uvlock_0_0"
+MODELS[Y]+=" terrestria:-/block/volcanic_rock_wall_side_tall_uvlock_0_180"
+RANGE[Y]=3.0
 
 rc() {
     "$DEVSERVER" "$MOD_DIR" rcon "$@"
@@ -595,6 +659,103 @@ cmd_f_return() {
     cmd_reload
 }
 
+cmd_modded_build() {
+    rc "forceload add ${MODDED_STRIP[0]} ${MODDED_STRIP[1]} ${MODDED_STRIP[2]} ${MODDED_STRIP[3]}" \
+        >/dev/null
+    cmd_modded_clear >/dev/null
+    local layout x z block dy out
+    for layout in "${MODDED_ORDER[@]}"; do
+        while read -r x z block dy; do
+            out="$(rc "setblock $x $((Y + ${dy:-0})) $z $block")"
+            [[ "$out" == Changed* ]] || echo "FAIL setblock $x $z $block: $out"
+        done < <(blocks_of "$layout")
+        echo "built $layout: ${DESCRIBE[$layout]}"
+    done
+}
+
+# Every wall, fence, bars and pane blockstate the jars in run/mods ship outside minecraft:, by id.
+modded_ids() {
+    local jar
+    for jar in "$MOD_DIR"/run/mods/*.jar; do
+        unzip -Z1 "$jar" 2>/dev/null \
+            | grep -oE '^assets/[a-z0-9_]+/blockstates/[a-z0-9_]+_(wall|fence|bars|pane)\.json$'
+    done | grep -v '^assets/minecraft/' | sed -E 's#assets/([^/]+)/blockstates/(.*)\.json#\1:\2#' \
+        | sort -u
+}
+
+# Builds each modded id as a south-east pair in the rows z 120 and 124, then checks that it owns
+# one diagonal drawn only by item displays, every one of whose models the hosted pack defines.
+cmd_modded_sweep() {
+    rc "forceload add ${MODDED_STRIP[0]} ${MODDED_STRIP[1]} ${MODDED_STRIP[2]} ${MODDED_STRIP[3]}" \
+        >/dev/null
+    local pack="$MOD_DIR/run/polymer/resource_pack.zip" listing
+    listing="$(unzip -Z1 "$pack" 2>/dev/null)" || { echo "FAIL no pack at $pack"; return 1; }
+    local id x=100 z=120 out items blocks model missing failed=0 count=0
+    while read -r id; do
+        rc "setblock $x $Y $z $id" >/dev/null
+        rc "setblock $((x + 1)) $Y $((z + 1)) $id" >/dev/null
+        sleep 0.1
+        out="$(rc "diagonals debug arms $x $Y $z")"
+        items="$(grep -oE 'item display [^,]+' <<<"$out" | cut -d' ' -f3 | xargs)"
+        blocks=$(grep -oE 'block display' <<<"$out" | wc -l)
+        missing=""
+        for model in $items; do
+            grep -qxF "assets/${model%%:*}/items/${model#*:}.json" <<<"$listing" \
+                || missing+=" $model"
+        done
+        if [[ -n "$items" && "$blocks" == 0 && -z "$missing" && "$out" == *"draws 1 arms"* ]]; then
+            echo "ok   $id: $items"
+        else
+            echo "FAIL $id: $out${missing:+; not in the pack:$missing}"
+            failed=1
+        fi
+        count=$((count + 1))
+        x=$((x + 3))
+        if (( x > 187 )); then
+            x=100
+            z=$((z + 4))
+        fi
+    done < <(modded_ids)
+    echo "$count modded ids swept"
+    return $failed
+}
+
+cmd_modded_clear() {
+    rc "fill ${MODDED_STRIP[0]} $Y ${MODDED_STRIP[1]} ${MODDED_STRIP[2]} $((Y + 3))" \
+        "${MODDED_STRIP[3]} air"
+}
+
+# The probe check, then each owner's arm: its elements' item models, as a set, and view ranges
+# against the layout's, and every model in the pack this server hosts.
+cmd_modded_check() {
+    cmd_check "${MODDED_ORDER[@]}"
+    local failed=$?
+    local pack="$MOD_DIR/run/polymer/resource_pack.zip" listing
+    listing="$(unzip -Z1 "$pack" 2>/dev/null)" || { echo "FAIL no pack at $pack"; return 1; }
+    local layout x z block dy out models ranges want model
+    for layout in "${MODDED_ORDER[@]}"; do
+        read -r x z block dy < <(blocks_of "$layout" | sort -n | head -1)
+        out="$(rc "diagonals debug arms $x $Y $z")"
+        models="$(grep -oE 'item display [^,]+' <<<"$out" | cut -d' ' -f3 | sort | xargs)"
+        ranges="$(grep -oE 'view range [0-9.]+' <<<"$out" | cut -d' ' -f3 | sort -u | xargs)"
+        want="$(tr ' ' '\n' <<<"${MODELS[$layout]}" | sort | xargs)"
+        if [[ "$models" == "$want" && "$ranges" == "${RANGE[$layout]}" ]]; then
+            echo "ok   $layout arm: $models at view range $ranges"
+        else
+            echo "FAIL $layout arm: got '$models' at '$ranges'; want '$want' at ${RANGE[$layout]}"
+            echo "     $out"
+            failed=1
+        fi
+        for model in $want; do
+            if ! grep -qxF "assets/${model%%:*}/items/${model#*:}.json" <<<"$listing"; then
+                echo "FAIL $layout: the pack has no item definition for $model"
+                failed=1
+            fi
+        done
+    done
+    return $failed
+}
+
 cmd_list() {
     local layout
     for layout in "${ORDER[@]}"; do
@@ -617,9 +778,18 @@ case "${1:-}" in
     f-first) shift; cmd_f_first "$@" ;;
     f-return) cmd_f_return ;;
     drawn) check_drawn ;;
+    modded)
+        case "${2:-}" in
+            build) cmd_modded_build ;;
+            check) cmd_modded_check ;;
+            sweep) cmd_modded_sweep ;;
+            clear) cmd_modded_clear ;;
+            *) echo "usage: scripts/layouts.sh modded <build|check|sweep|clear>" >&2; exit 1 ;;
+        esac
+        ;;
     *)
         echo "usage: scripts/layouts.sh <build|check|f-split|stats|list|live|timed|loop|unload" \
-            "|reload|f-first|f-return|drawn> [args...]" >&2
+            "|reload|f-first|f-return|drawn|modded> [args...]" >&2
         exit 1
         ;;
 esac
