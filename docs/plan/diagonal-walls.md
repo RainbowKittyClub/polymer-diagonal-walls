@@ -128,13 +128,23 @@ seeds. Test layouts get built by `scripts/layouts.sh` in the mod repo: rcon `set
 | P | A with a torch on each wall | one, low |
 | Q | A with a bottom slab above the owner only | one, low |
 | R | A with a top slab above each wall | one, low |
+| S | two terrestria volcanic rock walls corner to corner | one, item displays |
+| T | two Enderscape mirestone walls corner to corner | one, item displays |
+| U | two terrestria redwood fences corner to corner | one, item displays |
+| V | two woods_and_mires pine fences corner to corner | one, item displays |
+| W | two Enderscape veiled fences corner to corner | one, item displays |
+| X | two Enderscape `shadoline_bars` corner to corner | one, item displays |
+| Y | S with stone above both walls | one, tall, item displays |
+
+S–Y need a dev server with survival's modded blocks (S14), so `layouts.sh build` leaves them out
+and `layouts.sh modded build` builds them in the row z 116..117.
 
 The user does the visual checks in the dev client, and gets a short "what you'll see" before each
 round. A vanilla 26.2 client (no Fabric) joins the dev server for the no-mod view. That works
 because the mod adds no registry entries. Mob, item and player-movement checks live in the mod
 repo: `scripts/seal-legs.sh` (items, arrows and pens over rcon, with `execute if entity` counts),
-`scripts/seal-bots.js` and `scripts/columns-check.js` (mineflayer, borrowing `scripts/loadtest`'s
-modules), with the Via jar in `run/mods` (house pattern). From S7 on, `run/mods` also holds
+`scripts/seal-bots.js`, `scripts/columns-check.js` and `scripts/modded-arms.js` (mineflayer,
+borrowing `scripts/loadtest`'s modules), with the Via jar in `run/mods` (house pattern). From S7 on, `run/mods` also holds
 `lithium-fabric-0.25.3+mc26.2`, the build on survival. A stage isn't done until its "Done when" has
 been observed, so a failure at stage N points at stage N, not the ones before it.
 
@@ -600,7 +610,7 @@ Checked with Lithium 0.25.3 in `run/mods`:
 - After the change, wall gap A's items and arrows came to rest where they did before, pen G kept 25
   of 30 (the five rabbits out, as in S7), and the corner leg passed.
 
-## S14 — PPB and Enderscape walls, fences and bars — **planned**
+## S14 — PPB and Enderscape walls, fences and bars — **in progress**
 
 **Build.** The rule already admits PPB's and Enderscape's diagonals. Every one is a vanilla
 `WallBlock`, `FenceBlock` or `IronBarsBlock`, in the vanilla tags; Enderscape's etched magnia walls
@@ -706,6 +716,13 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
 - **Pane column height.** Default: three shulkers per column with lids at raw peek 52, which stand
   1.005 against a pane's 1.0: the lowest stack that reaches it. Two open shulkers stand 0.875 and
   three open ones 1.3125. Settled by the user's test on layout J.
+- **Modded arm models.** S14's Build says to show each side part's plain `_side` model, turned as
+  its blockstate turns it. The two halves of an arm overlap, though: a fence side runs to z 9.08 of
+  16, so the north and south halves share 2.16 px, and the 0.08 px growth makes wall halves share
+  0.16 px. Plain models put different texels on those coplanar faces. Default: a uvlock part shows
+  the patch's pre-rotated `_uvlock_<x>_<y>` copy unturned, as the overlays draw it, so the overlap
+  carries the same texels from both halves, as a block display of a vanilla arm does. Parts also
+  sit 1/4096 apart, as the overlays shift theirs. Settled by the user's look at layouts S–Y.
 - **Rabbits over a sealed diagonal.** A rabbit that bumps into something jumps 1.71 high, or 2.25
   from a standstill (`Rabbit.java:153`, `:167`). It lands on a post or a corner box at 1.5 and hops
   down on the far side. In S7's sealed pen G, every chicken, baby cow and cat stayed through
@@ -851,7 +868,9 @@ no code with ppb.
 **Overlays:**
 
 - PPB uses its own `BlockStateModel.midRange().shifty()` (`BlockStateModel.java:63–95`, view range
-  3.0). enderscape-patch uses factorytools `ShiftyBlockStateModel.longRange` (view range 100).
+  3.0), bars included (`BarsPolymerBlock.java:71`). enderscape-patch uses factorytools
+  `ShiftyBlockStateModel.longRange` for walls and fences and the unshifted `BlockStateModel.longRange`
+  for bars (`MapPolymerBlock.java:44`), all at view range 100.
 - Both draw one item display per multipart part: a `trial_key` whose `ITEM_MODEL` is the bridged
   model, with context `NONE` and yaw 180.
 - A uvlock part uses a pre-rotated `<model>_uvlock_<x>_<y>` copy.
