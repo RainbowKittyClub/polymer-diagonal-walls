@@ -21,8 +21,8 @@ import club.rainbowkitty.polymerdiagonalwalls.diagonal.Diagonal;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalRule;
 
 /**
- * {@code /diagonals probe <pos>}: prints the diagonals the block at {@code pos} owns, read from
- * loaded chunks only. Returns how many it owns. Gated on
+ * {@code /diagonals probe <pos>}: prints the diagonals the block at {@code pos} owns, each with its
+ * arm height, read from loaded chunks only. Returns how many it owns. Gated on
  * {@code polymerdiagonalwalls.command.probe}, op level 2 as fallback.
  */
 public final class ProbeCommand {
@@ -66,8 +66,10 @@ public final class ProbeCommand {
         for (Diagonal diagonal : owned) {
             BlockPos east = diagonal.east();
             String direction = diagonal.southEast() ? "south_east" : "north_east";
+            MutableComponent height = text(!diagonal.family().hasTallArms() ? "full"
+                    : diagonal.tall() ? "tall" : "low");
             source.sendSuccess(() -> text(direction, blockId(diagonal.eastState()),
-                    east.getX(), east.getY(), east.getZ()), false);
+                    east.getX(), east.getY(), east.getZ(), height), false);
         }
         return owned.size();
     }

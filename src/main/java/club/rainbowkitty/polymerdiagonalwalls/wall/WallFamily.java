@@ -52,6 +52,11 @@ public final class WallFamily implements DiagonalFamily {
     }
 
     @Override
+    public boolean hasTallArms() {
+        return true;
+    }
+
+    @Override
     public ArmVisual visual() {
         return visual;
     }

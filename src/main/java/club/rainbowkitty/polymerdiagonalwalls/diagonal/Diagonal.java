@@ -12,9 +12,11 @@ import net.minecraft.world.level.block.state.BlockState;
  * @param dz the east end's z step from {@code west}: +1 for south-east, -1 for north-east
  * @param westState the state at {@code west}
  * @param eastState the state at {@link #east()}
+ * @param tall whether the arm stands full height, as a wall side does under a covering block;
+ *        always false for a family without tall arms
  */
-public record Diagonal(
-        DiagonalFamily family, BlockPos west, int dz, BlockState westState, BlockState eastState) {
+public record Diagonal(DiagonalFamily family, BlockPos west, int dz, BlockState westState,
+        BlockState eastState, boolean tall) {
     public Diagonal {
         if (dz != 1 && dz != -1) {
             throw new IllegalArgumentException("Diagonal.dz must be +1 or -1, got " + dz);

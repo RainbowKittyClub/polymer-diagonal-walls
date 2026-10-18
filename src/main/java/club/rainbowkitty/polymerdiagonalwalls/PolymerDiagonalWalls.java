@@ -10,7 +10,9 @@ import club.rainbowkitty.kalic0re.common.command.CommandPermissions;
 import club.rainbowkitty.kalic0re.common.text.FallbackText;
 import club.rainbowkitty.polymerdiagonalwalls.command.DiagonalsCommand;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
+import club.rainbowkitty.polymerdiagonalwalls.fence.FenceFamily;
 import club.rainbowkitty.polymerdiagonalwalls.lifecycle.ArmUpdates;
+import club.rainbowkitty.polymerdiagonalwalls.pane.PaneFamily;
 import club.rainbowkitty.polymerdiagonalwalls.wall.WallFamily;
 
 /** Mod entrypoint: diagonal arms between walls, fences and panes standing corner to corner. */
@@ -43,6 +45,8 @@ public class PolymerDiagonalWalls implements ModInitializer {
         permissions = CommandPermissions.forMod(MOD_ID);
         text = FallbackText.load(MOD_ID);
         WallFamily.register();
+        FenceFamily.register();
+        PaneFamily.register();
         ArmIndex.register();
         ArmUpdates.register();
         DiagonalsCommand.register();

@@ -7,8 +7,13 @@ import org.jspecify.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * Which blocks join corner to corner. A joins B = A + (dx, 0, dz) when both belong to the same
@@ -21,6 +26,11 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class DiagonalRule {
     private static final int[] DZ_STEPS = {1, -1};
+    // Centre-line strips from the cell centre to each corner, by the corner's x and z steps.
+    private static final VoxelShape STRIP_SOUTH_EAST = cornerStrip(1, 1);
+    private static final VoxelShape STRIP_NORTH_EAST = cornerStrip(1, -1);
+    private static final VoxelShape STRIP_SOUTH_WEST = cornerStrip(-1, 1);
+    private static final VoxelShape STRIP_NORTH_WEST = cornerStrip(-1, -1);
 
     private static volatile List<DiagonalFamily> families = List.of();
 
@@ -81,7 +91,8 @@ public final class DiagonalRule {
         for (int dz : DZ_STEPS) {
             BlockState east = reader.stateAt(pos.offset(1, 0, dz));
             if (east != null && connects(state, east, 1, dz)) {
-                diagonals.add(new Diagonal(family, pos, dz, state, east));
+                diagonals.add(new Diagonal(
+                        family, pos, dz, state, east, tall(reader, family, pos, dz)));
             }
         }
         return diagonals;
@@ -106,9 +117,57 @@ public final class DiagonalRule {
             BlockPos west = pos.offset(-1, 0, -dz);
             BlockState westState = reader.stateAt(west);
             if (westState != null && connects(westState, state, 1, dz)) {
-                diagonals.add(new Diagonal(familyOf(westState), west, dz, westState, state));
+                DiagonalFamily family = familyOf(westState);
+                diagonals.add(new Diagonal(
+                        family, west, dz, westState, state, tall(reader, family, west, dz)));
             }
         }
         return diagonals;
+    }
+
+    /**
+     * Whether the diagonal {@code west} owns toward {@code dz} stands full height. That takes a
+     * family with tall arms, and above both ends either the same family's blocks joined by the
+     * stacked diagonal, or blocks whose down faces cover the arm's centre line, as vanilla
+     * raises a wall side under a covering block ({@code WallBlock.makeWallState}).
+     */
+    public static boolean tall(BlockReader reader, DiagonalFamily family, BlockPos west, int dz) {
+        if (!family.hasTallArms()) {
+            return false;
+        }
+        BlockPos westAbove = west.above();
+        BlockPos eastAbove = west.offset(1, 1, dz);
+        BlockState westUpper = reader.stateAt(westAbove);
+        BlockState eastUpper = reader.stateAt(eastAbove);
+        if (westUpper == null || eastUpper == null) {
+            return false;
+        }
+        if (family.admits(westUpper) && connects(westUpper, eastUpper, 1, dz)) {
+            return true;
+        }
+        return covers(westUpper, westAbove, dz > 0 ? STRIP_SOUTH_EAST : STRIP_NORTH_EAST)
+                && covers(eastUpper, eastAbove, dz > 0 ? STRIP_NORTH_WEST : STRIP_SOUTH_WEST);
+    }
+
+    // Whether upper's collision shape's down face holds all of strip, like WallBlock.isCovered.
+    private static boolean covers(BlockState upper, BlockPos pos, VoxelShape strip) {
+        if (upper.isAir()) {
+            return false;
+        }
+        VoxelShape face = upper.getCollisionShape(EmptyBlockGetter.INSTANCE, pos)
+                .getFaceShape(Direction.DOWN);
+        return !face.isEmpty() && !Shapes.joinIsNotEmpty(strip, face, BooleanOp.ONLY_FIRST);
+    }
+
+    // 2 px squares stepped 1 px along the diagonal from the centre to the (stepX, stepZ) corner:
+    // the diagonal counterpart of WallBlock's 2 px TEST_SHAPES_WALL.
+    private static VoxelShape cornerStrip(int stepX, int stepZ) {
+        VoxelShape strip = Shapes.empty();
+        for (int step = 0; step < 8; step++) {
+            double x = 8 + stepX * step;
+            double z = 8 + stepZ * step;
+            strip = Shapes.or(strip, Block.box(x - 1, 0, z - 1, x + 1, 16, z + 1));
+        }
+        return strip.optimize();
     }
 }
