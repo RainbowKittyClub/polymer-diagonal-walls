@@ -172,6 +172,51 @@ async function main () {
       describe(near(bot, A_ORIGIN, 4)))
     checkLayout('A after relog', near(bot, A_ORIGIN, 4), [A], FAMILIES.wall)
 
+    // Rebuild: a wall west of A's owner changes the owner's state, so its arm holder is rebuilt;
+    // the columns the bot holds stay, the same entities, with no gap.
+    const riderIds = seen => seen.riders.map(e => e.id).sort((a, b) => a - b).join()
+    const armIds = (centre, r) => [...bot.tracked.values()]
+      .filter(e => e.name === 'block_display' && e.passengers.length === 0 && e.meta[23] != null &&
+        Math.hypot(e.x - centre.x, e.z - centre.z) <= r)
+      .map(e => e.id)
+    const beforeRiders = riderIds(near(bot, A_ORIGIN, 4))
+    const beforeArms = armIds(A_ORIGIN, 4).join()
+    let fewest = near(bot, A_ORIGIN, 4).riders.length
+    const sampler = setInterval(() => {
+      fewest = Math.min(fewest, near(bot, A_ORIGIN, 4).riders.length)
+    }, 10)
+    await cmd(`setblock ${A.x - 1} ${Y} ${A.z} cobblestone_wall`)
+    await sleep(RECHECK_MS * 1.5)
+    clearInterval(sampler)
+    const rebuilt = armIds(A_ORIGIN, 4).join() !== beforeArms
+    record('rebuild: when A\'s owner changes state and its arm is rebuilt, the bot keeps every ' +
+      'column entity it held, with no gap',
+      rebuilt && fewest === FAMILIES.wall.riders && riderIds(near(bot, A_ORIGIN, 4)) === beforeRiders,
+      `arm rebuilt ${rebuilt}; fewest riders ${fewest}/${FAMILIES.wall.riders}; ` +
+      `same riders ${riderIds(near(bot, A_ORIGIN, 4)) === beforeRiders}`)
+
+    // Fresh: a wall north-east of A's partner gives the partner a diagonal of its own; its columns
+    // come with its arm, not at the next recheck.
+    const fresh = { x: A.x + 2, z: A.z + 1 }
+    await cmd(`setblock ${fresh.x} ${Y} ${fresh.z - 1} cobblestone_wall`)
+    await until(() => near(bot, fresh, 0.5).riders.length >= FAMILIES.wall.riders, RECHECK_MS * 2.5)
+    const freshSeen = [...bot.tracked.values()]
+      .filter(e => Math.hypot(e.x - fresh.x, e.z - fresh.z) <= 0.5)
+    const freshArm = freshSeen.find(e => e.name === 'block_display' && e.passengers.length === 0 &&
+      e.meta[23] != null)
+    const freshRiders = freshSeen.filter(e => e.name === 'shulker' || e.name === 'slime')
+    const lag = freshArm == null || freshRiders.length === 0
+      ? null
+      : Math.max(...freshRiders.map(e => e.at)) - freshArm.at
+    record('fresh: a new diagonal 5.6 blocks from the bot sends its columns with its arm',
+      lag != null && lag <= 100 && freshRiders.length === FAMILIES.wall.riders,
+      `${freshRiders.length} riders, ${lag == null ? 'no arm or riders' : `${lag} ms after the arm`}`)
+    await cmd(`setblock ${fresh.x} ${Y} ${fresh.z - 1} air`)
+    await cmd(`setblock ${A.x - 1} ${Y} ${A.z} air`)
+    await sleep(RECHECK_MS * 1.5)
+    record('restore: with both walls gone again, A holds one diagonal\'s columns',
+      counts(near(bot, A_ORIGIN, 4), 1, FAMILIES.wall), describe(near(bot, A_ORIGIN, 4)))
+
     // Pen G: sixteen diagonals.
     await tp(G_CENTRE.x, G_CENTRE.z)
     await until(() => near(bot, G_CENTRE, 6).riders.length >= G_DIAGONALS * 8, RECHECK_MS * 3)
