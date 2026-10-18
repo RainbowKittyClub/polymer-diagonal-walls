@@ -131,9 +131,10 @@ seeds. Test layouts get built by `scripts/layouts.sh` in the mod repo: rcon `set
 
 The user does the visual checks in the dev client, and gets a short "what you'll see" before each
 round. A vanilla 26.2 client (no Fabric) joins the dev server for the no-mod view. That works
-because the mod adds no registry entries. Mob, item and player-movement checks go through mineflayer
-at `scripts/loadtest/polymer-diagonal-walls.js`, with the Via jar in `run/mods` (house pattern) and
-`execute if entity` counts over rcon. From S7 on, `run/mods` also holds
+because the mod adds no registry entries. Mob, item and player-movement checks live in the mod
+repo: `scripts/seal-legs.sh` (items, arrows and pens over rcon, with `execute if entity` counts),
+`scripts/seal-bots.js` and `scripts/columns-check.js` (mineflayer, borrowing `scripts/loadtest`'s
+modules), with the Via jar in `run/mods` (house pattern). From S7 on, `run/mods` also holds
 `lithium-fabric-0.25.3+mc26.2`, the build on survival. A stage isn't done until its "Done when" has
 been observed, so a failure at stage N points at stage N, not the ones before it.
 
@@ -560,7 +561,7 @@ Size-0 slimes deal no damage (`AbstractCubeMob.java:250`).
 **Done when.** The user finds walking along layout I and a five-wall run in layout G with S12 as
 smooth as the spike's L13, and finds that both catch on the column corners with S12 off.
 
-## S13 — Mob collision for fences and panes — **in progress**
+## S13 — Mob collision for fences and panes — **done**
 
 **Build.** Extend S7's mixin to `CrossCollisionBlock.getCollisionShape`
 (`CrossCollisionBlock.java:81`) with the same entity rule: no players, and nothing carrying one.
@@ -572,6 +573,32 @@ are `FENCE` nodes (`WalkNodeEvaluator.java:536`). Panes are `BLOCKED` nodes
 
 **Done when.** Layout L holds S7's animals through `tick sprint 24000`, items bounce off a fence
 gap, and an arrow hits one.
+
+### As built
+
+`CornerBoxes` serves every family. It takes each end's boxes from the family's `ColumnLayout`: the
+part of each column square inside the end's own cell, as tall as the top of the vanilla collision
+shape. That gives:
+
+- walls the S7 box, 4×4 px and 24 px tall;
+- fences the outer column whole plus the middle column's quarter, 24 px tall;
+- panes two whole columns, 16 px tall, since none of the four straddles the corner point.
+
+One mixin on `CrossCollisionBlock.getCollisionShape` covers fences, panes and bars, since none of
+the vanilla subclasses override it. The cache is per family, vanilla shape and mask.
+
+Checked with Lithium 0.25.3 in `run/mods`:
+
+- Pen L kept 30 of 30 through `tick sprint 24000`, rabbits included, in two runs. With
+  `debug seal off`, 27 got out within 6000 ticks.
+- Items slid into fence gap H and pane gap J stop dead at the boxes; vanilla items have no bounce.
+  With the seal off they pass through.
+- Both arrows shot into H stick in its boxes 0.6 above the floor. In J one sticks and one drops, as
+  at walls (`AbstractArrow.shouldFall`). With the seal off they fly through.
+- `seal-bots.js cross` walks a bot straight through H and J: the server lets it through with no
+  forced move and no `moved wrongly`, so players keep vanilla shapes.
+- After the change, wall gap A's items and arrows came to rest where they did before, pen G kept 25
+  of 30 (the five rabbits out, as in S7), and the corner leg passed.
 
 ## S14 — PPB and Enderscape walls, fences and bars — **planned**
 
@@ -676,6 +703,9 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
   `minecraft:block/<wood>_fence_side`. Survival requires the pack, so that reaches every survival
   player. Settled by the user's look at layout H.
 - **Lobby install.** The lobby is a void world. Settled by the user before S16.
+- **Pane column height.** Default: three shulkers per column with lids at raw peek 52, which stand
+  1.005 against a pane's 1.0: the lowest stack that reaches it. Two open shulkers stand 0.875 and
+  three open ones 1.3125. Settled by the user's test on layout J.
 - **Rabbits over a sealed diagonal.** A rabbit that bumps into something jumps 1.71 high, or 2.25
   from a standstill (`Rabbit.java:153`, `:167`). It lands on a post or a corner box at 1.5 and hops
   down on the far side. In S7's sealed pen G, every chicken, baby cow and cat stayed through
