@@ -560,7 +560,7 @@ Size-0 slimes deal no damage (`AbstractCubeMob.java:250`).
 **Done when.** The user finds walking along layout I and a five-wall run in layout G with S12 as
 smooth as the spike's L13, and finds that both catch on the column corners with S12 off.
 
-## S13 — Mob collision for fences and panes — **planned**
+## S13 — Mob collision for fences and panes — **in progress**
 
 **Build.** Extend S7's mixin to `CrossCollisionBlock.getCollisionShape`
 (`CrossCollisionBlock.java:81`) with the same entity rule: no players, and nothing carrying one.
