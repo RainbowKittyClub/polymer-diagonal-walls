@@ -28,17 +28,16 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.Diagonal;
+import club.rainbowkitty.polymerdiagonalwalls.settings.DiagonalSettings;
 
 /**
  * Which players get which owner's columns. A client ticks every shulker and slime it holds as a
  * mob, so a player gets a {@link ColumnSite}'s columns only while it tracks the site's chunk
- * within {@link #COLLISION_RANGE} of it. Once a second each level's players are offered the sites
- * near them, building their holders, and released from those they have left; a holder nobody
- * watches any more is dropped. Server thread only.
+ * within {@link DiagonalSettings#COLLISION_RANGE} of it. Once a second each level's players are
+ * offered the sites near them, building their holders, and released from those they have left; a
+ * holder nobody watches any more is dropped. Server thread only.
  */
 public final class ColumnRange {
-    /** Blocks from a site's position within which a player gets its columns. */
-    public static final double COLLISION_RANGE = 8;
     // A watcher keeps its columns this much farther out, so one standing at the edge sees no churn.
     private static final double RELEASE_MARGIN = 2;
     private static final int RECHECK_TICKS = 20;
@@ -93,8 +92,8 @@ public final class ColumnRange {
     /** Whether {@code player} is near enough {@code holder} to be given its columns. */
     public static boolean admits(ServerPlayer player, ColumnHolder holder) {
         HolderAttachment attachment = holder.getAttachment();
-        return attachment != null
-                && within(player, attachment.getWorld(), holder.getPos(), COLLISION_RANGE);
+        return attachment != null && within(player, attachment.getWorld(), holder.getPos(),
+                DiagonalSettings.collisionRange(attachment.getWorld().getServer()));
     }
 
     /** Runs {@code action} on every built holder, and returns how many there were. */
@@ -129,7 +128,8 @@ public final class ColumnRange {
 
     // Releases watchers that have moved off, drops unwatched holders, then serves each player.
     private static void recheck(ServerLevel level, Long2ObjectMap<Set<ColumnSite>> chunks) {
-        double releaseRange = COLLISION_RANGE + RELEASE_MARGIN;
+        double range = DiagonalSettings.collisionRange(level.getServer());
+        double releaseRange = range + RELEASE_MARGIN;
         for (Set<ColumnSite> inChunk : chunks.values()) {
             for (ColumnSite site : inChunk) {
                 ColumnHolder holder = site.holder();
@@ -151,17 +151,18 @@ public final class ColumnRange {
         for (ServerPlayer player : level.players()) {
             // Polymer stops a dying player watching; serving it would undo that.
             if (!player.isDeadOrDying()) {
-                serveNearby(player, chunks);
+                serveNearby(player, chunks, range);
             }
         }
     }
 
-    // Gives player the columns of every site in range whose chunk it tracks.
-    private static void serveNearby(ServerPlayer player, Long2ObjectMap<Set<ColumnSite>> chunks) {
-        int minX = SectionPos.blockToSectionCoord(Mth.floor(player.getX() - COLLISION_RANGE));
-        int maxX = SectionPos.blockToSectionCoord(Mth.floor(player.getX() + COLLISION_RANGE));
-        int minZ = SectionPos.blockToSectionCoord(Mth.floor(player.getZ() - COLLISION_RANGE));
-        int maxZ = SectionPos.blockToSectionCoord(Mth.floor(player.getZ() + COLLISION_RANGE));
+    // Gives player the columns of every site within range blocks whose chunk it tracks.
+    private static void serveNearby(
+            ServerPlayer player, Long2ObjectMap<Set<ColumnSite>> chunks, double range) {
+        int minX = SectionPos.blockToSectionCoord(Mth.floor(player.getX() - range));
+        int maxX = SectionPos.blockToSectionCoord(Mth.floor(player.getX() + range));
+        int minZ = SectionPos.blockToSectionCoord(Mth.floor(player.getZ() - range));
+        int maxZ = SectionPos.blockToSectionCoord(Mth.floor(player.getZ() + range));
         for (int chunkX = minX; chunkX <= maxX; chunkX++) {
             for (int chunkZ = minZ; chunkZ <= maxZ; chunkZ++) {
                 Set<ColumnSite> inChunk = chunks.get(ChunkPos.pack(chunkX, chunkZ));
@@ -169,7 +170,7 @@ public final class ColumnRange {
                     continue;
                 }
                 for (ColumnSite site : List.copyOf(inChunk)) {
-                    if (within(player, site.level(), site.origin(), COLLISION_RANGE)
+                    if (within(player, site.level(), site.origin(), range)
                             && VirtualEntityUtils.isPlayerTracking(player, site.chunk())) {
                         // A new holder takes every admitted tracker as it attaches.
                         site.build().startWatching(player.connection);

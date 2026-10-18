@@ -11,7 +11,8 @@ import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
 
 import club.rainbowkitty.polymerdiagonalwalls.collision.SealedPaths;
 
-// Extends NodeEvaluator to reach its currentContext field. AmphibiousNodeEvaluator inherits this.
+// Extends NodeEvaluator to reach its mob and currentContext fields. AmphibiousNodeEvaluator
+// inherits this.
 @Mixin(WalkNodeEvaluator.class)
 abstract class WalkNodeEvaluatorMixin extends NodeEvaluator {
     // Refuses a diagonal step vanilla allows between two posts whose gap a diagonal seals.
@@ -21,7 +22,7 @@ abstract class WalkNodeEvaluatorMixin extends NodeEvaluator {
             + "Lnet/minecraft/world/level/pathfinder/Node;)Z", at = @At("RETURN"))
     private boolean polymerdiagonalwalls$avoidSealedGaps(
             boolean valid, Node pos, @Nullable Node ew, @Nullable Node ns) {
-        return valid && !(ew != null && ns != null
-                && SealedPaths.crossesSealedGap(this.currentContext, ew, ns));
+        return valid && !(ew != null && ns != null && SealedPaths.crossesSealedGap(
+                this.mob.level().getServer(), this.currentContext, ew, ns));
     }
 }

@@ -15,6 +15,7 @@ import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
 import club.rainbowkitty.polymerdiagonalwalls.fence.FenceFamily;
 import club.rainbowkitty.polymerdiagonalwalls.lifecycle.ArmUpdates;
 import club.rainbowkitty.polymerdiagonalwalls.pane.PaneFamily;
+import club.rainbowkitty.polymerdiagonalwalls.settings.DiagonalSettings;
 import club.rainbowkitty.polymerdiagonalwalls.wall.WallFamily;
 
 /** Mod entrypoint: diagonal arms between walls, fences and panes standing corner to corner. */
@@ -46,6 +47,7 @@ public class PolymerDiagonalWalls implements ModInitializer {
         // own message instead of an ExceptionInInitializerError wrapped around it.
         permissions = CommandPermissions.forMod(MOD_ID);
         text = FallbackText.load(MOD_ID);
+        DiagonalSettings.register();
         WallFamily.register();
         FenceFamily.register();
         PaneFamily.register();

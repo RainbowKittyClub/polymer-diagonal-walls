@@ -26,8 +26,6 @@ public final class ArmTransform {
 
     // Toward the owner on each axis, so the entity's light cell is the owner, never opaque.
     private static final float NUDGE = 1f / 16f;
-    // 128 blocks at 100% entity distance.
-    private static final float VIEW_RANGE = 2f;
     private static final float CULL_WIDTH = 1.25f;
     // A full-height arm reaches 1 + ε.
     private static final float CULL_HEIGHT = 1.0625f;
@@ -61,6 +59,5 @@ public final class ArmTransform {
         arm.setLeftRotation(rotation);
         arm.setScale(scale);
         arm.setDisplaySize(CULL_WIDTH, CULL_HEIGHT);
-        arm.setViewRange(VIEW_RANGE);
     }
 }
