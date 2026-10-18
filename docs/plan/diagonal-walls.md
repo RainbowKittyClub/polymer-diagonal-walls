@@ -145,7 +145,9 @@ because the mod adds no registry entries. Mob, item, player-movement, settings a
 live in the mod repo: `scripts/seal-legs.sh` (items, arrows and pens over rcon, with `execute if
 entity` counts), `scripts/seal-bots.js`, `scripts/columns-check.js`, `scripts/settings-check.js`
 and `scripts/modded-arms.js` (mineflayer, borrowing `scripts/loadtest`'s modules), with the Via jar
-in `run/mods` (house pattern). From S7 on, `run/mods` also holds
+in `run/mods` (house pattern). S15's load and WorldEdit legs are `scripts/lattice-check.js`, on
+lattices `layouts.sh lattice build` makes, with spark and WorldEdit in `run/mods`. From S7 on,
+`run/mods` also holds
 `lithium-fabric-0.25.3+mc26.2`, the build on survival. A stage isn't done until its "Done when" has
 been observed, so a failure at stage N points at stage N, not the ones before it.
 
@@ -728,6 +730,15 @@ survival's `data/mods/` under a dot-name, `mv` it into place, then run `scripts/
   arm (S14) keeps its overlay's range, 3.0 for PPB and 100 for enderscape-patch, so it vanishes
   with the overlay it meets. The alternative is the smaller of the two. Default: the overlay's
   range. Settled by the user.
+- **Holders per owner.** Each owner has its own holder, and Polymer keeps every player's watched
+  holders in a list. A player who leaves the fully loaded 16-chunk wall lattice drops 32,640 of them
+  in one tick, and that tick ran 48–85 ms, nearly all in `ElementHolder.stopWatching`. Its
+  `ArrayList.remove` is linear, so the cost grows with the square of a player's holders
+  (`ServerPlayNetworkHandlerMixin.java:26`, `:37`, `:48`). While the lattice is in view, the same
+  holders cost about 1 ms a tick: 0.6 ms walking each player's list and 0.5 ms ticking each chunk's
+  attachments (`ServerWorldMixin.java:16`). Default: keep one holder per owner, since real builds
+  give a player far fewer holders. The alternatives are one holder per chunk (256 for the lattice)
+  or a set in the RKC Polymer fork. Settled by the user.
 - **Rabbits over a sealed diagonal.** A rabbit that bumps into something jumps 1.71 high, or 2.25
   from a standstill (`Rabbit.java:153`, `:167`). It lands on a post or a corner box at 1.5 and hops
   down on the far side. In S7's sealed pen G, every chicken, baby cow and cat stayed through
@@ -901,3 +912,42 @@ The RKC Polymer fork changes none of this.
   (`BlockBoundAttachment.java:36–44`). Walls aren't, hence `ChunkAttachment` plus our own index.
 - Chunk unload (`setLoaded(false)`) destroys every holder in the chunk (`WorldChunkMixin.java:111`).
 - Watching starts on `sendChunk` and stops on `dropChunk` (`ChunkDataSenderMixin.java:21`, `:28`).
+
+## Reference: Lattice load
+
+Measured on the S15 dev server on 2026-10-18: survival's mod set (S14) plus Lithium, WorldEdit
+7.4.4, Axiom 6.0.3 and spark 1.10.185, at view distance 16 and simulation distance 12 as on
+survival. One bot is the only player. `tick query`'s P99 is the slowest of its last 100 ticks, so
+"worst tick" is the largest P99 sampled every 2 s from the teleport on.
+
+| Measure | Wall lattice | Fence lattice |
+|---|---|---|
+| Area | 16×16 chunks, 32,768 walls | 4×4 chunks, 2,048 fences |
+| Holders, arms | 32,640, 65,025 | 2,016, 3,969 |
+| Teleport in, uncapped drain: worst tick | 78.3, 71.8 ms | 15.9, 21.1 ms |
+| Teleport in, 5 ms drain budget: worst tick | 16.9–32.2 ms over 7 runs | 19.0–34.0 ms over 4 |
+| Holders all indexed after the teleport | 0.6–0.7 s uncapped, 1.0–1.7 s capped | 0.1–0.3 s |
+| Drain time per lattice chunk (spark at 1 ms) | 0.63 ms uncapped, 0.35 ms capped | 0.44 ms, 1.6 ms cold |
+| Teleport out: worst tick | 48.4–85.3 ms (see "Holders per owner") | 13.9–17.3 ms |
+| Diagonals in collision range at the centre | 192 | 192 |
+| Entities the bot is sent | 65,025 arms + 3,072 column entities | 3,969 + 4,224 |
+| Per diagonal in collision range | 17: 6 shulkers, 2 slimes, 8 vehicles, the arm | 23: 9, 2, 11, the arm |
+
+Uncapped, the one slow arrival tick spent 46 of its 53 sampled ms in `ArmUpdates.drain`. With the
+budget, no tick over 50 ms was sampled on any arrival. One more capped run read 99.9 ms, but its
+window reached back into the teleport out before it. The budget is checked before each chunk scan
+and each owner refresh; what is left waits for the next tick, owners an earlier drain left first.
+
+WorldEdit, run as the bot through its own chat (`execute as` gives WorldEdit the console's actor,
+which has no world). Every edit below changed blocks between two ticks, and the arm count moved at
+that tick's drain:
+
+- `//set` of one wall diagonal to another (+1), then of it to air (−1);
+- `//paste` of a 16-square checkerboard saved with `//schem save` and loaded into an emptied
+  clipboard (+225), then `//undo`, `//redo`, `//undo`;
+- `//set` of that checkerboard's square to walls, which joins every cell (−225), then `//undo`;
+- `//paste` of a 64-square checkerboard (+3,969), with a worst tick of 5.7 ms, then `//undo`.
+
+An edit whose drain needs more than the budget spreads over ticks instead. While the wall lattice
+was rebuilt by `clone`, 16,384 walls in its last command, the slowest tick was 10.7 ms.
+
