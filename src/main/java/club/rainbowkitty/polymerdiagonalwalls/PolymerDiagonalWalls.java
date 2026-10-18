@@ -1,5 +1,6 @@
 package club.rainbowkitty.polymerdiagonalwalls;
 
+import eu.pb4.polymer.resourcepack.api.PolymerResourcePackUtils;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,9 @@ public class PolymerDiagonalWalls implements ModInitializer {
         // own message instead of an ExceptionInInitializerError wrapped around it.
         permissions = CommandPermissions.forMod(MOD_ID);
         text = FallbackText.load(MOD_ID);
+        // Ships assets/presencefootsteps/config/golemmap.json: Presence Footsteps plays
+        // "squeakywood" for any shulker, so every collision column sounded like a wooden fence.
+        PolymerResourcePackUtils.addModAssets(MOD_ID);
         DiagonalSettings.register();
         WallFamily.register();
         FenceFamily.register();

@@ -30,6 +30,7 @@
     "minecraft": "${project.minecraft_version}",
     "java": ">=${project.java_version}",
     "polymer-core": "*",
+    "polymer-resource-pack": "*",
     "polymer-virtual-entity": "*"
   }
 }
