@@ -26,11 +26,11 @@ import club.rainbowkitty.polymerdiagonalwalls.diagonal.DiagonalRule;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
 
 /**
- * Keeps arms in step with the world. Block changes and chunk loads and unloads only mark
- * positions, from whatever thread raised them; each level's end of tick drains the marks into
- * {@link ArmIndex} on the server thread, within a time budget: what is left waits for the next
- * tick. Nothing here reads another chunk while a block is being set, or touches level storage from
- * a chunk event, which can fire inside a level's constructor.
+ * Keeps arms in step with the world. Block changes, members' random ticks and chunk loads and
+ * unloads only mark positions, from whatever thread raised them; each level's end of tick drains
+ * the marks into {@link ArmIndex} on the server thread, within a time budget: what is left waits
+ * for the next tick. Nothing here reads another chunk while a block is being set, or touches level
+ * storage from a chunk event, which can fire inside a level's constructor.
  */
 public final class ArmUpdates {
     // Drains a loaded chunk may wait for getChunkNow to return it before it is given up.
@@ -78,6 +78,17 @@ public final class ArmUpdates {
         }
         if (memberBelow) {
             pending.markBlock(below.asLong());
+        }
+    }
+
+    /**
+     * Marks {@code pos} for the same refresh as a block change there when {@code state} takes
+     * diagonals: the random-tick fallback for writes that never reach
+     * {@code LevelChunk.setBlockState}. Safe from any thread.
+     */
+    public static void recheck(ServerLevel level, BlockPos pos, BlockState state) {
+        if (DiagonalRule.isDiagonalBlock(state)) {
+            pending(level).markBlock(pos.asLong());
         }
     }
 

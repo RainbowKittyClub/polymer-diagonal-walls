@@ -10,7 +10,8 @@
     "LevelChunkMixin",
     "ShulkerAccessor",
     "WalkNodeEvaluatorMixin",
-    "WallBlockMixin"
+    "WallBlockMixin",
+    "WeatheringCopperBarsBlockMixin"
   ],
   "injectors": {
     "defaultRequire": 1
