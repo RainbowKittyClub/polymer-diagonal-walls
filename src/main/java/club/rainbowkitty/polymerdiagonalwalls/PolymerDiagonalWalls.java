@@ -13,6 +13,7 @@ import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnDebug;
 import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnRange;
 import club.rainbowkitty.polymerdiagonalwalls.command.DiagonalsCommand;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
+import club.rainbowkitty.polymerdiagonalwalls.display.FenceArmModels;
 import club.rainbowkitty.polymerdiagonalwalls.fence.FenceFamily;
 import club.rainbowkitty.polymerdiagonalwalls.lifecycle.ArmUpdates;
 import club.rainbowkitty.polymerdiagonalwalls.pane.PaneFamily;
@@ -50,6 +51,7 @@ public class PolymerDiagonalWalls implements ModInitializer {
         // Ships assets/presencefootsteps/config/golemmap.json: Presence Footsteps plays
         // "squeakywood" for any shulker, so every collision column sounded like a wooden fence.
         PolymerResourcePackUtils.addModAssets(MOD_ID);
+        FenceArmModels.register();
         WallFamily.register();
         FenceFamily.register();
         PaneFamily.register();

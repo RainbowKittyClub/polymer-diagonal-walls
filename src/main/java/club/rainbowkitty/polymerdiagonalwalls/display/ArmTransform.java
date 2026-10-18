@@ -27,11 +27,14 @@ public final class ArmTransform {
      * where a stacked arm's bottom starts, so it neither z-fights the post nor leaves a gap.
      */
     public static final float FULL_HEIGHT = 1;
+    /**
+     * The view range of an arm of a block that reaches clients as itself: 128 blocks at 100%
+     * entity distance, 64 per unit (Display.java:403).
+     */
+    public static final float VIEW_RANGE = 2f;
 
     // Toward the owner on each axis, so the entity's light cell is the owner, never opaque.
     private static final float NUDGE = 1f / 16f;
-    // Block-display arms: 128 blocks at 100% entity distance, 64 per unit (Display.java:403).
-    private static final float VIEW_RANGE = 2f;
     private static final float CULL_WIDTH = 1.25f;
     // A full-height arm reaches 1 + ε.
     private static final float CULL_HEIGHT = 1.0625f;
