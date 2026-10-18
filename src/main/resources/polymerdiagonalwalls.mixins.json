@@ -4,6 +4,8 @@
   "package": "club.rainbowkitty.polymerdiagonalwalls.mixin",
   "compatibilityLevel": "JAVA_${project.java_version}",
   "mixins": [
+    "AxiomSetBlockMixin",
+    "AxiomSetBufferMixin",
     "CrossCollisionBlockMixin",
     "LevelChunkMixin",
     "ShulkerAccessor",

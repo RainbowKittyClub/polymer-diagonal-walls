@@ -12,7 +12,8 @@ import net.minecraft.world.level.chunk.LevelChunk;
 
 import club.rainbowkitty.polymerdiagonalwalls.lifecycle.ArmUpdates;
 
-// Every block write on a loaded chunk ends here, WorldEdit's included, unlike Level.setBlock.
+// Level.setBlock and WorldEdit both end here; Axiom's direct section writes have
+// AxiomSetBufferMixin and AxiomSetBlockMixin.
 @Mixin(LevelChunk.class)
 abstract class LevelChunkMixin {
     // A non-null return is the replaced state, so only a real change gets marked.
