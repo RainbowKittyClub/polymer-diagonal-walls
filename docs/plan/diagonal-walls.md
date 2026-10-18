@@ -122,6 +122,12 @@ seeds. Test layouts get built by `scripts/layouts.sh` in the mod repo: rcon `set
 | J | two glass panes corner to corner | one |
 | K | an oak fence and a nether brick fence corner to corner | none (vanilla never joins them) |
 | L | G built from oak fences | sixteen |
+| M | a three-wall diagonal run, two high | four; the lower two tall |
+| N | A under a 2×2 bottom-slab ceiling | one, tall |
+| O | A with stone above both walls | one, tall |
+| P | A with a torch on each wall | one, low |
+| Q | A with a bottom slab above the owner only | one, low |
+| R | A with a top slab above each wall | one, low |
 
 The user does the visual checks in the dev client, and gets a short "what you'll see" before each
 round. A vanilla 26.2 client (no Fabric) joins the dev server for the no-mod view. That works
@@ -320,7 +326,7 @@ in an older neighbour chunk whose partner was missing until now.
 - With every layout chunk unloaded, `stats` reads 0.
 - `isn't loaded` (`ChunkAttachment.java:56`) never appears in the log.
 
-## S6 — Tall arms and stacked diagonal walls — **planned**
+## S6 — Tall arms and stacked diagonal walls — **in progress**
 
 **Build.** `DiagonalRule.tall(level, a, b, dx, dz)` returns true in either of two cases:
 
@@ -403,7 +409,7 @@ cases: with the mixin disabled, it jitters in the corner.
 - On a dev server without rkcore-common, `/gamerule polymerdiagonalwalls:enabled false` does the
   same.
 
-## S10 — Fence and pane diagonals — **planned**
+## S10 — Fence and pane diagonals — **in progress**
 
 **Build.** Add two families to `DiagonalRule`, each joining only what vanilla joins cardinally:
 
