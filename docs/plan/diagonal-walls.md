@@ -29,8 +29,9 @@ on S2 only). S9 (settings) is skipped. S10 (fence and pane arms) needs S3; S11 �
 columns, then slimes, for every family) need S10; S13 (mob collision for fences and panes) needs S7
 and S10. S14 (PPB and Enderscape blocks) needs S6, S10 and S11. S15 (load and editors) needs S4, S5
 and S11. S16 (Presence Footsteps) needs S11. S17 (Axiom edits) needs S4. S18 (fence arms without
-the corner post) needs S10 and S14. S19 (watched holders in the RKC Polymer fork) stands alone. S13
-makes the feature complete for vanilla blocks and S14 for modded ones; S20 ships it.
+the corner post) needs S10 and S14. S19 (watched holders in the RKC Polymer fork) stands alone.
+S20 (rabbits) needs S7. S13 makes the feature complete for vanilla blocks and S14 for modded ones;
+S21 ships it.
 
 ---
 
@@ -949,7 +950,7 @@ as `VoidDeepslateBlock.java:313` does.
 - The bars meet the posts with no seam.
 - A client without the pack still sees the block-display arm.
 
-## S19 — A set for Polymer's watched holders — **planned**
+## S19 — A set for Polymer's watched holders — **done**
 
 **Build.** In `rkc/forks/polymer`, add a branch off `9a3e815` (0.17.5+26.2), with a `-26.3` twin
 like every fork branch. polymer-virtual-entity keeps each player's watched holders in an
@@ -959,13 +960,62 @@ costs O(N²): 48–85 ms on S15's lattice teleport-out.
 
 Swap it for an insertion-ordered set, such as fastutil's `ReferenceLinkedOpenHashSet`, so anything
 walking the collection keeps its order. Merge it into `rkc/26.2`, which the live jar is built from,
-only for S20.
+only for S21.
 
 **Done when.** On a dev server running the fork bundle with this branch, repacked the way the chest
 worktree did, the wall-lattice teleport-out stays under 50 ms. Polymer's other behaviour shows no
 change: the dev server boots, and arms and columns behave as before.
 
-## S20 — Live deploy — **planned**
+### As built
+
+Built on fork branch `perf/watched-holder-set` (`bf98e31f`, `b2574faf`), with the twin
+`perf/watched-holder-set-26.3` (`a0625064`, `76f3dbe8`, off `2b8b908d` like every other twin). The
+collection became a `ReferenceLinkedOpenHashSet`, so remove is O(1) and insertion order holds.
+
+A second commit was needed. The per-tick cleanup used to copy every watched holder, and copying a
+linked set goes through an iterator. It now walks the set and copies only the holders it drops.
+
+No caller indexes the collection, and every caller that changes it while walking either copies
+first or stops right after.
+
+Measured on the wall lattice with the test merge `test/rkc-26.2-holder-set` (`7bc673ef`):
+
+| Measure | Before | After |
+|---|---|---|
+| Teleport-out worst tick | 55–117 ms over 12 legs | 14–46 ms over 10 |
+| Per-tick holder handler, player inside the lattice | 0.40 ms | about 1.0 ms |
+| Chunk-drop handler, per chunk step | 12 ms | 23–24 ms |
+
+Teleport-in was 11–40 ms either way. The bot received all 65,025 arms, and `columns-check.js`
+passed 34/34. Iterating a linked set is about 2.3× slower than an array, and that is the
+steady-state cost above. A swap-remove variant keeps the old per-tick cost but not insertion order
+(see "Open decisions"). `rkc/26.2` is unchanged and nothing is deployed.
+
+## S20 — Walls stop the in-block jump, as fences do — **planned**
+
+**Build.** Vanilla's `MoveControl` makes a mob jump when the block at its own position has a
+collision top above the mob's feet, unless that block is in `#doors` or `#fences`
+(`MoveControl.java:98–106`). Walls are in neither, though they stand 1.5 tall like fences.
+
+A rabbit is 0.49 wide and a wall post is inset 0.25, so a rabbit touching a post has its centre
+0.005 inside the post's cell. An idle rabbit pressed against a post then jumps whenever it can
+(`Rabbit.java:537–542`, power 0.5 from `:153`), peaking at 1.709, above the 1.5 tops. At a
+diagonal's staircase it drifts onto a post or corner box and walks the tops out. See "Reference:
+Rabbits over diagonals".
+
+Add a mixin that gives `#minecraft:walls` the same exemption, for every mob and every wall,
+diagonal or not. That also stops vanilla's slow straight-wall leak. A mob whose path climbs onto a
+wall top still jumps on purpose, through the other condition at `MoveControl.java:101`.
+
+**Done when.**
+
+- In the rabbit harness's pens, with Lithium, G, G2 and the straight ring R72 lose rabbits at no
+  more than the fence pens' rate. The switch test gave G 0 of 20, G2 1 of 10 and R72 0 of 10 over
+  24,000 ticks.
+- The other animals stay in.
+- A mob whose path climbs a wall top still climbs it.
+
+## S21 — Live deploy — **planned**
 
 **Build.** Release 0.1.0, and deploy only after the user names the go-ahead, to survival and the
 lobby, which the user chose on 2026-10-18. Copy the jar into `data/mods/` and `lobby/mods/` under
@@ -986,13 +1036,14 @@ persists, so rollback is removing the jar.
 
 ## Open decisions
 
-- **Rabbits over a sealed diagonal.** A rabbit that bumps into something jumps 1.71 high, or 2.25
-  from a standstill (`Rabbit.java:153`, `:167`). It lands on a post or a corner box at 1.5 and hops
-  down on the far side. In S7's sealed pen G, every chicken, baby cow and cat stayed through
-  `tick sprint 24000`, and all 5 rabbits got out. A straight 5×5 wall ring kept 10 of 10 rabbits
-  through the same sprint. Corner boxes 2.5 tall cut the losses from about 2.5 to 1 of 10 rabbits
-  per 3000 ticks, because the posts are still perches. Default: keep the boxes at post height and
-  leave rabbits out of S7's pass count. Settled by the user.
+- **Watched-holder collection (S19).** The insertion-ordered set fixes the teleport-out spike but
+  costs about 0.6 ms more a tick for a player inside the 32k-holder lattice, and about twice the
+  chunk-drop cost. Fork branch `exp/watched-holder-swap-remove` (`5fa996a7`, test merge `77f4248d`,
+  no `-26.3` twin yet) keeps an `ArrayList` with an identity index and swap-remove. It fixes the
+  spike just as well (11–41 ms) at the old per-tick cost (0.41–0.53 ms), but it loses insertion
+  order. No caller was found that depends on that order: entity ids are unique per holder, and
+  order only affects packet order. Settled by the user before S21.
+
 ## Reference: Decisions
 
 Settled with the user on 2026-10-18, after the in-world pass:
@@ -1006,7 +1057,8 @@ Settled with the user on 2026-10-18, after the in-world pass:
 - **Modded arm models:** the mods' pre-rotated `_uvlock_` copies, drawn as their overlays draw them.
 - **Modded arm view range:** each overlay's own, 3.0 for PPB and 100 for enderscape-patch.
 - **Holders per owner:** keep one holder per owner, and fix the cost in the RKC Polymer fork (S19).
-- **Lobby:** install on both survival and the lobby (S20).
+- **Lobby:** install on both survival and the lobby (S21).
+- **Rabbits:** walls get fences' exemption from `MoveControl`'s in-block jump (S20).
 - **Wall slimes:** 0.375 wide, centred on each 0.25 wall column. The first ones were the
   columns' own size, which a player can never enter, so they pushed no one.
 - **Existing walls:** arms come from the blocks on every chunk load. Existing builds and generated
@@ -1191,6 +1243,50 @@ Decided by the user on 2026-10-18 and kept as they are:
   shape is empty. A player then couldn't aim at that wall to mine it, pick it or place against it.
 - **S16 silences Presence Footsteps on every shulker,** not only the columns: End city shulkers
   lose PF's wooden step too, for any player with the server pack.
+
+## Reference: Rabbits over diagonals
+
+Measured on 2026-10-18 on branch `wf/rabbits`, with uncommitted tracing. Three `tick sprint 24000`
+runs per pen, with Lithium 0.25.3, the corner boxes and the path rule on. An escape takes three
+steps in a row:
+
+1. **Pressing a wall post makes an idle rabbit jump.** `MoveControl.java:98–106` exempts doors and
+   fences but not walls. An idle rabbit re-enters MOVE_TO every tick (`Rabbit.java:557`, `:180`),
+   and its jump control fires at once (`:537–542`).
+2. **A diagonal lets it drift onto a top.** Once its feet clear 1.5, air control (0.02,
+   `LivingEntity.java:2706`) drifts it a few thousandths of a block a tick toward a stale path
+   target around the corner of the staircase. That is enough to land on a post or corner box at
+   exactly 1.5. At a straight face the target is always on the rabbit's side, and the 7×7 ring had
+   0 tops from 221 jumps.
+3. **From a top it walks out.** Wall and fence tops are walkable path nodes
+   (`WalkNodeEvaluator.java:455–469`), and a random wander target is usually outside a small pen.
+
+| Pen | Jumps against a post | Rabbits out |
+|---|---|---|
+| G, diagonal walls | 122 | 16 of 30 |
+| G2, diagonal walls with other animals | 285 | 15 of 15 |
+| L, diagonal fences | 0 | 0 of 30 |
+| L2, diagonal fences with other animals | 0 | 3 of 15 |
+| R5, straight 5×5 wall ring | 573 | 2 of 30 |
+| R72, straight 7×7 wall ring with other animals | 863 | 5 of 15 |
+
+The earlier results, "the fence pen kept them all" and "the straight ring kept 10 of 10", were
+luck. Straight walls leak slowly in vanilla too.
+
+Single-switch tests over 24,000 ticks:
+
+| Change | Rabbits out |
+|---|---|
+| Walls exempt like fences | G 0 of 20, G2 1 of 10, R72 0 of 10 |
+| Corner boxes 2.5 or 3.0 tall | G 2–5 of 10, G2 5 of 5 |
+| Posts 2.5 tall | G 4 of 10, G2 4 of 5 |
+| Posts and corner boxes both at least 2.5 | 0 at every diagonal |
+
+Two tests had nothing to do with any fix:
+
+- **Taller posts or boxes alone:** each move the landings to whichever perch is still 1.5 tall.
+- **No mod collision at all:** nearly every rabbit crossed at floor level through the gap, since
+  0.49 is under 0.5.
 
 ## Reference: Lattice load
 
