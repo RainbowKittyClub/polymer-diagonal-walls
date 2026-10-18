@@ -237,7 +237,7 @@ level 33 (full, not ticking) and the partner's chunk x 10 at level 34. Probe the
 and "owns no diagonals"; forcing chunk x 10 gave "owns 1" on the next command. rcon joins a
 command's messages with no separator, so `check` counts diagonals by match, not by line.
 
-## S3 — Arm displays — **planned**
+## S3 — Arm displays — **in progress**
 
 **Build.** `display/ArmHolder extends ElementHolder` holds one `BlockDisplayElement` per owned
 diagonal (one or two):
@@ -330,6 +330,9 @@ in an older neighbour chunk whose partner was missing until now.
   from the post to the cell corner, the diagonal counterpart of `TEST_SHAPES_WALL` (`:47`).
 
 A tall arm uses `north=tall,south=tall`. S4's `P.below()` mark already covers changes above.
+The tall side model runs to y 16, so S3's lift of ε with y scale 1 − ε would put a tall arm's top
+exactly on the post top, z-fighting where the arm end sits inside the post. Lift a tall arm by
+ε/2 instead (found while building S3).
 
 **Done when.**
 
