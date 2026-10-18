@@ -951,3 +951,8 @@ that tick's drain:
 An edit whose drain needs more than the budget spreads over ticks instead. While the wall lattice
 was rebuilt by `clone`, 16,384 walls in its last command, the slowest tick was 10.7 ms.
 
+Axiom 6.0.3's bytecode, not yet tried in a client: its bulk edits (`AxiomServerboundSetBuffer`)
+write `LevelChunkSection.setBlockState` directly, so S4's hook never sees them and arms should
+only follow when the chunk next loads. Its single-block packet (`AxiomServerboundSetBlock`) calls
+`ServerLevel.setBlock`, which the hook sees, on one path and writes the section on another.
+
