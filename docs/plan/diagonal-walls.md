@@ -928,7 +928,7 @@ and panes with Axiom's tools. Arms appear and go within a tick each time. The de
 gains its arm after a random tick of either end, and clearing both ends that way drops the arm
 within one pass of the re-check.
 
-## S18 — Fence arms without the corner post — **in progress**
+## S18 — Fence arms without the corner post — **done**
 
 **Build.** A fence's blockstate draws its post under every state, so S10's block-display arm shows
 an extra post at the corner point. PPB and Enderscape fences already avoid it: S14 draws only their
@@ -949,6 +949,30 @@ as `VoidDeepslateBlock.java:313` does.
 - In the Kalic0 client with the pack, layouts H and I and pen L show bars with no corner post.
 - The bars meet the posts with no seam.
 - A client without the pack still sees the block-display arm.
+
+### As built
+
+Built on `wf/fence-arms` and merged into `wf/integration` as `d7cd164`. Four deltas from the
+Build text:
+
+- **One composite per fence.** `FenceArmModels` writes one item definition per fence at pack
+  build: a `minecraft:composite` of the arm's side parts, read from the fence's own blockstate.
+  The parts the blockstate turns get generated copies with the turn and uv-lock baked in; bamboo
+  uses its own north and south models. So an arm is a single item display.
+- **Per-element audience instead of per-holder.** The split is Polymer's per-element
+  `setVisibilityPredicate`, not two holders. There is still one holder per owner, and a holder
+  built before the async pack finishes still splits correctly.
+- **New dependency.** `polymer-resource-pack-extras` was added to `fabric.mod.json`.
+- **Debug output.** `/diagonals debug arms` names which players each element reaches.
+
+Testing showed:
+
+- The pack carries 13 definitions and 12 turned copies, and every model they name exists in the
+  client jar.
+- `fence-arms.js` passed 30 of 30. A bot holding the pack got one item display at H and at all
+  five diagonals of I; a bot without it got the block display.
+- On 2026-10-18 the user found the post-less fences look good in-world, and Axiom clears them
+  properly.
 
 ## S19 — A set for Polymer's watched holders — **done**
 
