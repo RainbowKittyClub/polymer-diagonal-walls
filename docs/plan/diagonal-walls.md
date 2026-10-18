@@ -991,7 +991,7 @@ passed 34/34. Iterating a linked set is about 2.3× slower than an array, and th
 steady-state cost above. A swap-remove variant keeps the old per-tick cost but not insertion order
 (see "Open decisions"). `rkc/26.2` is unchanged and nothing is deployed.
 
-## S20 — Walls stop the in-block jump, as fences do — **planned**
+## S20 — Walls stop the in-block jump, as fences do — **done**
 
 **Build.** Vanilla's `MoveControl` makes a mob jump when the block at its own position has a
 collision top above the mob's feet, unless that block is in `#doors` or `#fences`
@@ -1014,6 +1014,33 @@ wall top still jumps on purpose, through the other condition at `MoveControl.jav
   24,000 ticks.
 - The other animals stay in.
 - A mob whose path climbs a wall top still climbs it.
+
+### As built
+
+`mixin/MoveControlMixin` wraps both `BlockState.is(TagKey)` calls in `MoveControl.tick` with a
+MixinExtras `@WrapOperation`. Where the call asks about `#minecraft:fences`, a wall answers yes as
+well. The path-node condition at `MoveControl.java:101` is untouched.
+
+Checked with the rabbit harness and Lithium 0.25.3, five `tick sprint 24000` runs:
+
+| Pen | Rabbits out before, 3 runs | After, 5 runs |
+|---|---|---|
+| G, diagonal walls | 16 of 30 | 1 of 50 |
+| G2, diagonal walls with other animals | 15 of 15 | 3 of 25 |
+| R72, straight wall ring with other animals | 5 of 15 | 1 of 25 |
+| R5, straight 5×5 wall ring | 2 of 30 | 0 of 50 |
+| L, diagonal fences | 0 of 30 | 1 of 50 |
+| L2, diagonal fences with other animals | 3 of 15 | 2 of 25 |
+
+- Idle rabbits stopped jumping at walls: 256 jumps in G over the three runs before, none after.
+  The four `MoveControl` rabbit jumps left all aimed at a path node on a top, 0.75 or 1.5 above.
+- The escapes left take the fence route: an ordinary hop against a post lands on a top, the
+  rabbit's path ends there, and it plans a new one outward. G2's 3 of 25 matches the fence pens'
+  5 of 40 over all eight runs, which the mixin doesn't touch.
+- Every chicken, baby cow and cat stayed in G2, L2 and R72 in all five runs.
+- Climb check: a 2-high stone ring whose only way out is a bottom slab inside, then a wall top.
+  All 5 chickens and 5 rabbits left over it, as over the same ring with a fence. Chickens made 8
+  jumps from slab height toward the top 1.0 above, the `:101` condition. With no slab, none left.
 
 ## S21 — Live deploy — **planned**
 
