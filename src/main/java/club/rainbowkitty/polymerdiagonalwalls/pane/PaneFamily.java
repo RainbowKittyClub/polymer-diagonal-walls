@@ -29,9 +29,11 @@ public final class PaneFamily implements DiagonalFamily {
     public static final TagKey<Block> DIAGONAL_PANES =
             TagKey.create(Registries.BLOCK, PolymerDiagonalWalls.id("diagonal_panes"));
 
-    // No client collision yet.
-    private static final ColumnLayout COLUMNS =
-            new ColumnLayout(List.of(), 0.25, 0, 0, List.of(), 0.25);
+    // Four 0.21875 columns between the post corners at +-0.4375, three half-open shulkers reaching
+    // a pane's 1.0. Each slime spans a post corner to the corner point.
+    private static final ColumnLayout COLUMNS = new ColumnLayout(
+            List.of(-0.328125, -0.109375, 0.109375, 0.328125), 0.21875, 3, 1.0,
+            List.of(-0.21875, 0.21875), 0.4375);
 
     private final ArmVisual visual = CrossArmVisual.pane();
 
