@@ -11,7 +11,7 @@
 #   scripts/seal-legs.sh pen [on|boxes] [ticks] [G|L]          # 30 animals, sprint (default 24000)
 #   scripts/seal-legs.sh pen-count [G|L]                       # where those animals are now
 #
-# MOD_DIR (default: this checkout) picks the dev server.
+# MOD_DIR (default: this checkout) and, for a multi-version build, DEV_MC pick the dev server.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,6 +28,12 @@ while [[ "$dir" != "/" ]]; do
 done
 [[ -n "$DEVSERVER" ]] || { echo "no scripts/devserver.sh above $MOD_DIR" >&2; exit 2; }
 
+# A Stonecutter checkout runs one dev server per version; DEV_MC picks it, as devserver.sh --mc does.
+DEVSERVER_ARGS=()
+if [[ -f "$MOD_DIR/stonecutter.gradle" && -n "${DEV_MC:-}" ]]; then
+    DEVSERVER_ARGS=(--mc "$DEV_MC")
+fi
+
 Y=-53
 # Items start just above the floor, arrows at post height.
 ITEM_Y=-52.95
@@ -40,7 +46,7 @@ declare -A PEN_X=([G]=136 [L]=180) PEN_Z=([G]=104 [L]=104)
 PEN_RADIUS=4
 
 rc() {
-    "$DEVSERVER" "$MOD_DIR" rcon "$@"
+    "$DEVSERVER" "$MOD_DIR" "${DEVSERVER_ARGS[@]}" rcon "$@"
 }
 
 set_mode() {

@@ -31,8 +31,9 @@
 #   scripts/layouts.sh lattice clear <wall|fence>   # force, empty and unforce it again
 #   scripts/layouts.sh lattice expect <wall|fence>  # its origin, size, block, holders and arms
 #
-# MOD_DIR (default: this checkout) picks the dev server. Every layout stands on the seeded flat
-# world's surface, y=-53, in the chunk row z 96..111 at x >= 100, away from spawn.
+# MOD_DIR (default: this checkout) and, for a multi-version build, DEV_MC pick the dev server.
+# Every layout stands on the seeded flat world's surface, y=-53, in the chunk row z 96..111 at
+# x >= 100, away from spawn.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -49,6 +50,16 @@ while [[ "$dir" != "/" ]]; do
     fi
 done
 [[ -n "$DEVSERVER" ]] || { echo "no scripts/devserver.sh above $MOD_DIR" >&2; exit 2; }
+
+# A Stonecutter checkout runs one dev server per version, under versions/<v>/run. DEV_MC picks it,
+# as devserver.sh --mc does, and defaults to the committed version.
+RUN_DIR="$MOD_DIR/run"
+DEVSERVER_ARGS=()
+if [[ -f "$MOD_DIR/stonecutter.gradle" ]]; then
+    MC="${DEV_MC:-$(grep -m1 '^stonecutter_vcs_version=' "$MOD_DIR/gradle.properties" | cut -d= -f2- | tr -d '[:space:]')}"
+    RUN_DIR="$MOD_DIR/versions/$MC/run"
+    DEVSERVER_ARGS=(--mc "$MC")
+fi
 
 Y=-53
 # Strip every layout lives in; later layouts extend it eastward up to x 191.
@@ -225,7 +236,7 @@ MODELS[Y]+=" terrestria:-/block/volcanic_rock_wall_side_tall_uvlock_0_180"
 RANGE[Y]=3.0
 
 rc() {
-    "$DEVSERVER" "$MOD_DIR" rcon "$@"
+    "$DEVSERVER" "$MOD_DIR" "${DEVSERVER_ARGS[@]}" rcon "$@"
 }
 
 # Every layout's diagonals added up, which is what stats reads with all of them loaded.
@@ -396,7 +407,7 @@ cmd_f_split() {
 # A datapack in the dev world whose functions sample stats once per tick, at the start of each
 # tick's scheduled functions: sample k runs before tick k's drain, so it sees drains 1..k-1.
 install_pack() {
-    local pack="$MOD_DIR/run/world/datapacks/pdwtest"
+    local pack="$RUN_DIR/world/datapacks/pdwtest"
     local fn="$pack/data/pdwtest/function"
     [[ -f "$fn/watch_sample.mcfunction" ]] && return 0
     mkdir -p "$fn"
@@ -561,8 +572,8 @@ cmd_live() {
 # straddle a drain at every phase. Then waits for the layout total.
 cmd_loop() {
     local rounds="${1:-1000}" port password
-    port="$(grep -m1 '^rcon.port=' "$MOD_DIR/run/server.properties" | cut -d= -f2-)"
-    password="$(grep -m1 '^rcon.password=' "$MOD_DIR/run/server.properties" | cut -d= -f2-)"
+    port="$(grep -m1 '^rcon.port=' "$RUN_DIR/server.properties" | cut -d= -f2-)"
+    password="$(grep -m1 '^rcon.password=' "$RUN_DIR/server.properties" | cut -d= -f2-)"
     local g=() x z block dy
     while read -r x z block dy; do
         g+=("$x $z")
@@ -698,7 +709,7 @@ cmd_modded_build() {
 # Every wall, fence, bars and pane blockstate the jars in run/mods ship outside minecraft:, by id.
 modded_ids() {
     local jar
-    for jar in "$MOD_DIR"/run/mods/*.jar; do
+    for jar in "$RUN_DIR"/mods/*.jar; do
         unzip -Z1 "$jar" 2>/dev/null \
             | grep -oE '^assets/[a-z0-9_]+/blockstates/[a-z0-9_]+_(wall|fence|bars|pane)\.json$'
     done | grep -v '^assets/minecraft/' | sed -E 's#assets/([^/]+)/blockstates/(.*)\.json#\1:\2#' \
@@ -710,7 +721,7 @@ modded_ids() {
 cmd_modded_sweep() {
     rc "forceload add ${MODDED_STRIP[0]} ${MODDED_STRIP[1]} ${MODDED_STRIP[2]} ${MODDED_STRIP[3]}" \
         >/dev/null
-    local pack="$MOD_DIR/run/polymer/resource_pack.zip" listing
+    local pack="$RUN_DIR/polymer/resource_pack.zip" listing
     listing="$(unzip -Z1 "$pack" 2>/dev/null)" || { echo "FAIL no pack at $pack"; return 1; }
     local id x=100 z=120 out items blocks model missing failed=0 count=0
     while read -r id; do
@@ -752,7 +763,7 @@ cmd_modded_clear() {
 cmd_modded_check() {
     cmd_check "${MODDED_ORDER[@]}"
     local failed=$?
-    local pack="$MOD_DIR/run/polymer/resource_pack.zip" listing
+    local pack="$RUN_DIR/polymer/resource_pack.zip" listing
     listing="$(unzip -Z1 "$pack" 2>/dev/null)" || { echo "FAIL no pack at $pack"; return 1; }
     local layout x z block dy out models ranges want model
     for layout in "${MODDED_ORDER[@]}"; do
