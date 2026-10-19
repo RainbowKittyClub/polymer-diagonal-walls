@@ -1111,12 +1111,69 @@ Two costs are left:
   change and entity clicks.
 - A subclass that overrides `getChunkPos()` could leave a stale key.
 
-**Chosen: chunk buckets** (the user, 2026-10-18). The fork branches are:
-- `perf/watched-holder-buckets` (`704b4128`): the prototype as one commit off `9a3e815`.
-- `perf/watched-holder-buckets-26.3` (`805ae128`): its twin off `2b8b908d`, which compiles against
-  26.3.
+The user first chose chunk buckets (`perf/watched-holder-buckets`, `704b4128`, and its `-26.3`
+twin `805ae128`). A max code review of it then made the rebuild below replace it.
 
-The 26.2 branch is merged into `rkc/26.2` as `ba7bf583`, the same tree as the measured test merge.
+#### Review and rebuild
+
+The review's two key findings:
+
+- **`dropChunk` never unwatches a live player.** Its `updateTracking` runs before the new view is
+  installed. That is upstream behaviour, live today. A player keeps every holder of a chunk that
+  stays loaded: one near another player, a forceload, or one inside its own ticket ring but outside
+  the client's view. Only chunk unload, death, a dimension change or disconnect releases them.
+- **The bucket index only made that no-op cheap.** Each `LevelChunk` already lists its own
+  attachments, and only `ChunkAttachment` (and `BlockBoundAttachment`) has an `updateTracking` that
+  acts. `EntityAttachment` and `ManualAttachment` leave it empty.
+
+Rebuilt as two fork branches, each one commit off `9a3e815` with a `-26.3` twin off `2b8b908d`.
+Both twins compile, and 26.3's `applyChunkTrackingView` has the same shape.
+
+- **`fix/dropped-chunk-holders`** (`3ca020a8`, twin `fbd3f386`):
+  - An inject at `ChunkMap.applyChunkTrackingView` TAIL, after the new view is set, takes each
+    chunk the player left.
+  - It calls `updateTracking` on that chunk's own watched attachments.
+  - That stops them even though the chunk stays loaded. The old walk over all watched holders in
+    `PlayerChunkSender.dropChunk` is gone.
+- **`perf/watched-holder-removal`** (`4e639ae6`, twin `c2f0244c`):
+  - Swap-remove through an identity index, so `stopWatching` is O(1) and walks stay on an
+    `ArrayList`.
+  - A deduplicated detach queue, filled by `setAttachment(null)` and by watching while unattached,
+    replaces the per-tick walk.
+  - Each queued holder gets its own try/catch, and one that stays watched and unattached is retried
+    next tick, as the old walk did.
+  - A `getAttachment()` override alone is not seen.
+
+Both are merged into `rkc/26.2` as `116d2a34`, the same tree as the measured test merge
+`ed93abe7`. Test-only commit `61dcce09` checks every second that no chunk-attached holder is
+watched outside the player's view, and that the index and queue agree.
+
+Leak check (`leak.js`): the wall lattice forceloaded, a bot at its centre, then teleported 2000
+blocks away while every lattice chunk stays loaded.
+
+| Build | Holders the bot still watches |
+|---|---|
+| Chunk buckets, as upstream | 32,640 (all) |
+| The rebuild | 0, within 5 s |
+
+With the self-check on, it logged no errors over:
+- the moving leg (fence pushed 10 of 10 times);
+- the lattice walk;
+- `columns-check.js` (34/34) and `lattice-check.js` (12/12).
+
+Timing, back to back on one server:
+
+| Measure | Chunk buckets | Rebuild |
+|---|---|---|
+| Teleport-out, server-thread busy over 5.5 s | 336–429 ms | 285–367 ms |
+| Teleport-out worst tick (profiled) | 24–26 ms | 17–21 ms |
+| Leaving 256 chunks, in `unwatchDroppedChunks` | — | 8–11 ms |
+| Chunk step and per-tick handlers | none sampled | none sampled |
+| Lattice teleport-in worst tick | 20.8–30.2 ms | 16.7–39.1 ms |
+
+The 8–11 ms is the 32k holders stopping at once on leaving, work the leak used to defer to chunk
+unload. One earlier arrival tick read 53.2 ms. Its profile held no watched-holder frames, only
+chunk loading and the arm drain, and three more runs stayed under 40 ms.
 
 ## S20 — Walls stop the in-block jump, as fences do — **done**
 
@@ -1174,7 +1231,7 @@ Checked with the rabbit harness and Lithium 0.25.3, five `tick sprint 24000` run
 **Build.** Release 0.1.0, and deploy only after the user names the go-ahead, to survival and the
 lobby, which the user chose on 2026-10-18. Copy the jar into `data/mods/` and `lobby/mods/` under
 a dot-name and `mv` it into place. Do the same with the RKC Polymer bundle rebuilt from `rkc/26.2`
-(which has S19 since `ba7bf583`), since both servers run it. Then run
+(which has S19 since `116d2a34`), since both servers run it. Then run
 `scripts/restart.sh survival "…"` and `scripts/restart.sh lobby "…"`.
 
 The lobby sends no resource pack, so it gets block-display arms only. Modded-block arms, S18's
@@ -1205,9 +1262,11 @@ Settled with the user on 2026-10-18, after the in-world pass:
 - **Modded arm models:** the mods' pre-rotated `_uvlock_` copies, drawn as their overlays draw them.
 - **Modded arm view range:** each overlay's own, 3.0 for PPB and 100 for enderscape-patch.
 - **Holders per owner:** keep one holder per owner, and fix the cost in the RKC Polymer fork (S19).
-- **Watched-holder collection:** chunk buckets (S19), over the insertion-ordered set and
-  swap-remove. Chosen because they remove the chunk-drop and per-tick walks, not only the slow
-  removal.
+- **Watched-holder collection (S19):** `fix/dropped-chunk-holders` plus
+  `perf/watched-holder-removal`.
+  - Chunk buckets were chosen first. They gave way after the max review showed the drop hook never
+    unwatched anyone.
+  - The rebuild fixes that leak and keeps buckets' speed without a per-player chunk index.
 - **Lobby:** install on both survival and the lobby (S21).
 - **Rabbits:** walls get fences' exemption from `MoveControl`'s in-block jump (S20).
 - **Wall pushers:** 0.375 wide, centred on each 0.25 wall column. The first ones were the
