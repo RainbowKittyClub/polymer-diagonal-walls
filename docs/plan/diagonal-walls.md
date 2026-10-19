@@ -1116,7 +1116,7 @@ Two costs are left:
 - `perf/watched-holder-buckets-26.3` (`805ae128`): its twin off `2b8b908d`, which compiles against
   26.3.
 
-S21 merges the 26.2 branch into `rkc/26.2`.
+The 26.2 branch is merged into `rkc/26.2` as `ba7bf583`, the same tree as the measured test merge.
 
 ## S20 — Walls stop the in-block jump, as fences do — **done**
 
@@ -1174,7 +1174,7 @@ Checked with the rabbit harness and Lithium 0.25.3, five `tick sprint 24000` run
 **Build.** Release 0.1.0, and deploy only after the user names the go-ahead, to survival and the
 lobby, which the user chose on 2026-10-18. Copy the jar into `data/mods/` and `lobby/mods/` under
 a dot-name and `mv` it into place. Do the same with the RKC Polymer bundle rebuilt from `rkc/26.2`
-with `perf/watched-holder-buckets` (S19) merged in, since both servers run it. Then run
+(which has S19 since `ba7bf583`), since both servers run it. Then run
 `scripts/restart.sh survival "…"` and `scripts/restart.sh lobby "…"`.
 
 The lobby sends no resource pack, so it gets block-display arms only. Modded-block arms, S18's
@@ -1459,6 +1459,7 @@ survival. One bot is the only player. `tick query`'s P99 is the slowest of its l
 | Diagonals in collision range at the centre | 192 | 192 |
 | Entities the bot is sent | 65,025 arms + 3,072 column entities | 3,969 + 4,224 |
 | Per diagonal in collision range | 17: 6 shulkers, 2 frogs, 8 vehicles, the arm | 23: 9, 2, 11, the arm |
+| The user's 26.3 client through ViaFabric | 120 to 12 fps above the centre | 120 to 50 fps nearby |
 
 Uncapped, the one slow arrival tick spent 46 of its 53 sampled ms in `ArmUpdates.drain`. With the
 budget, no tick over 50 ms was sampled on any arrival. One more capped run read 99.9 ms, but its
