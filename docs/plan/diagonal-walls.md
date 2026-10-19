@@ -1057,6 +1057,60 @@ passed 34/34. Iterating a linked set is about 2.3× slower than an array, and th
 steady-state cost above. A swap-remove variant keeps the old per-tick cost but not insertion order
 (see "Open decisions"). `rkc/26.2` is unchanged and nothing is deployed.
 
+#### Chunk buckets
+
+Fork branch `exp/watched-holder-chunk-index` (`b782dd91`, `b5d2eb20`, on swap-remove's `5fa996a7`;
+no `-26.3` twin) files each player's watched holders in per-chunk sets:
+
+- **Chunk drop:** `dropChunk` visits only that chunk's set.
+- **Re-filing:** each holder carries the chunk every watcher files it under, and moves when its
+  chunk changes.
+- **Per-tick check:** walks only holders queued by `setAttachment(null)`, or watched while
+  unattached.
+- **`getHolders()`:** is a view over the sets.
+
+A first cut kept the flat list, its index and a per-player chunk map beside the sets. It made both
+teleports slower than swap-remove (worst out tick 26–56 ms), so it was replaced.
+
+`dropChunk` still stops no chunk attachment. Vanilla drops a chunk before it installs the new view
+(`ChunkMap.java:1127–1128`), so `updateTracking` still sees the chunk as tracked. Holders go when
+the chunk unloads, or at the tick after their attachment is removed.
+
+Measured on the wall lattice with the test merge `test/rkc-26.2-holder-chunk-index` (`be508ad1`)
+as 0.17.5.6, beside swap-remove on the same server:
+
+| Measure | Swap-remove | Chunk buckets |
+|---|---|---|
+| Chunk-drop handler, per chunk step | 10–15 ms | none sampled |
+| Per-tick holder handler, player inside the lattice | 0.34–0.45 ms | none sampled |
+| Teleport-out, server thread in the chunk-drop walk | 221–297 ms | 3–6 ms |
+| Teleport-out, server-thread busy time over 5.5 s | 602–627 ms | 376–486 ms |
+| Teleport-out worst tick, back to back | 10.6–22.8 ms | 22.8–29.5 ms |
+| Teleport-in worst tick | 17–38.5 ms | 11.1–33.4 ms |
+
+The chunk-drop walk runs in `ChunkMap.move` while the server handles the player's movement packet,
+between ticks, so no tick time ever showed it (see `docs/TESTING.md`). The busy rows profile the
+whole 5.5 s around a bot's teleport-out with spark at 1 ms, not only the slow ticks. The worst out
+tick reads 5–15 ms higher with buckets for less total work; why is not known.
+
+Checked with the test-only commit `51efbb84`. With `-Dpolymer.ve.verifyChunkIndex=true`, it
+checks two things:
+- Every second, every filed holder reports its set's chunk, is attached and lists the player as a
+  watcher.
+- At each `dropChunk`, every watched holder attached to that chunk is in its set.
+
+It logged no errors over these runs:
+- 12 Enderscape entity models teleported across a chunk border 40 times.
+- A ppb fence pushed across the border by a sticky piston 10 of 10 times.
+- The bot leaving and coming back four times.
+- The lattice walk (32,746 holders in 256 chunks).
+- `columns-check.js` (34/34) and `lattice-check.js` (12/12).
+
+Two costs are left:
+- Walks over `getHolders()` now go through hash sets. That covers teleport, death, dimension
+  change and entity clicks.
+- A subclass that overrides `getChunkPos()` could leave a stale key.
+
 ## S20 — Walls stop the in-block jump, as fences do — **done**
 
 **Build.** Vanilla's `MoveControl` makes a mob jump when the block at its own position has a
@@ -1129,13 +1183,18 @@ persists, so rollback is removing the jar.
 
 ## Open decisions
 
-- **Watched-holder collection (S19).** The insertion-ordered set fixes the teleport-out spike but
-  costs about 0.6 ms more a tick for a player inside the 32k-holder lattice, and about twice the
-  chunk-drop cost. Fork branch `exp/watched-holder-swap-remove` (`5fa996a7`, test merge `77f4248d`,
-  no `-26.3` twin yet) keeps an `ArrayList` with an identity index and swap-remove. It fixes the
-  spike just as well (11–41 ms) at the old per-tick cost (0.41–0.53 ms), but it loses insertion
-  order. No caller was found that depends on that order: entity ids are unique per holder, and
-  order only affects packet order. Settled by the user before S21.
+- **Watched-holder collection (S19).** Three fork branches, none with a `-26.3` twin except the set:
+  - **The insertion-ordered set** fixes the teleport-out spike. But it costs about 0.6 ms more a
+    tick for a player inside the 32k-holder lattice, and about twice the chunk-drop cost.
+  - **`exp/watched-holder-swap-remove`** (`5fa996a7`, test merge `77f4248d`) keeps an `ArrayList`
+    with an identity index and swap-remove. It fixes the spike just as well (11–41 ms) at the old
+    per-tick cost (0.41–0.53 ms), but it loses insertion order. No caller was found that depends on
+    that order: entity ids are unique per holder, and order only affects packet order.
+  - **`exp/watched-holder-chunk-index`** (S19 "Chunk buckets") removes the chunk-drop walk and the
+    per-tick walk. Teleport-out drops from 221–297 ms to 3–6 ms in that walk, and chunk steps from
+    10–15 ms to unmeasurable.
+
+  Settled by the user before S21.
 
 ## Reference: Decisions
 
