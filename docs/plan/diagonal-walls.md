@@ -1143,10 +1143,13 @@ Both twins compile, and 26.3's `applyChunkTrackingView` has the same shape.
   - Each queued holder gets its own try/catch, and one that stays watched and unattached is retried
     next tick, as the old walk did.
   - A `getAttachment()` override alone is not seen.
+  - `polymer$getHolders()` returns an unmodifiable view (`3b56ec45`, twin `a1de7017`), so a write
+    through it can't bypass the index (review finding 7).
 
 Both are merged into `rkc/26.2` as `116d2a34`, the same tree as the measured test merge
-`ed93abe7`. Test-only commit `61dcce09` checks every second that no chunk-attached holder is
-watched outside the player's view, and that the index and queue agree.
+`ed93abe7`. The read-only view followed as `3840a481`. Test-only commit `61dcce09` checks every
+second that no chunk-attached holder is watched outside the player's view, and that the index and
+queue agree.
 
 Leak check (`leak.js`): the wall lattice forceloaded, a bot at its centre, then teleported 2000
 blocks away while every lattice chunk stays loaded.
@@ -1231,7 +1234,7 @@ Checked with the rabbit harness and Lithium 0.25.3, five `tick sprint 24000` run
 **Build.** Release 0.1.0, and deploy only after the user names the go-ahead, to survival and the
 lobby, which the user chose on 2026-10-18. Copy the jar into `data/mods/` and `lobby/mods/` under
 a dot-name and `mv` it into place. Do the same with the RKC Polymer bundle rebuilt from `rkc/26.2`
-(which has S19 since `116d2a34`), since both servers run it. Then run
+(which has S19 as of `3840a481`), since both servers run it. Then run
 `scripts/restart.sh survival "…"` and `scripts/restart.sh lobby "…"`.
 
 The lobby sends no resource pack, so it gets block-display arms only. Modded-block arms, S18's
