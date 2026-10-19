@@ -873,7 +873,7 @@ arms follow or only refresh on chunk reload.
 The numbers are in "Reference: Lattice load". The only new code is the drain cap: a 5 ms budget
 per drain (`eeb8520`), checked before each chunk scan and owner refresh. It brought the worst
 arrival tick in the wall lattice from 78.3 ms to 16.9–32.2 ms. The teleport out still reaches 48–85
-ms in Polymer's per-player holder list, which the open decision "Holders per owner" covers.
+ms in Polymer's per-player holder list, which S19 fixes.
 
 WorldEdit's `//set`, `//paste`, `//undo` and `//redo` moved the arms at the next drain, within a
 tick. Client FPS passed in the user's test on 2026-10-18. In the same test, Axiom 6.0.3's edits left
@@ -1016,7 +1016,7 @@ Testing showed:
 - On 2026-10-18 the user found the post-less fences look good in-world, and Axiom clears them
   properly.
 
-## S19 — A set for Polymer's watched holders — **done**
+## S19 — Polymer's watched holders — **done**
 
 **Build.** In `rkc/forks/polymer`, add a branch off `9a3e815` (0.17.5+26.2), with a `-26.3` twin
 like every fork branch. polymer-virtual-entity keeps each player's watched holders in an
@@ -1111,6 +1111,13 @@ Two costs are left:
   change and entity clicks.
 - A subclass that overrides `getChunkPos()` could leave a stale key.
 
+**Chosen: chunk buckets** (the user, 2026-10-18). The fork branches are:
+- `perf/watched-holder-buckets` (`704b4128`): the prototype as one commit off `9a3e815`.
+- `perf/watched-holder-buckets-26.3` (`805ae128`): its twin off `2b8b908d`, which compiles against
+  26.3.
+
+S21 merges the 26.2 branch into `rkc/26.2`.
+
 ## S20 — Walls stop the in-block jump, as fences do — **done**
 
 **Build.** Vanilla's `MoveControl` makes a mob jump when the block at its own position has a
@@ -1167,8 +1174,8 @@ Checked with the rabbit harness and Lithium 0.25.3, five `tick sprint 24000` run
 **Build.** Release 0.1.0, and deploy only after the user names the go-ahead, to survival and the
 lobby, which the user chose on 2026-10-18. Copy the jar into `data/mods/` and `lobby/mods/` under
 a dot-name and `mv` it into place. Do the same with the RKC Polymer bundle rebuilt from `rkc/26.2`
-with S19, since both servers run it. Then run `scripts/restart.sh survival "…"` and
-`scripts/restart.sh lobby "…"`.
+with `perf/watched-holder-buckets` (S19) merged in, since both servers run it. Then run
+`scripts/restart.sh survival "…"` and `scripts/restart.sh lobby "…"`.
 
 The lobby sends no resource pack, so it gets block-display arms only. Modded-block arms, S18's
 post-less fence arms and S16's Presence Footsteps silence apply on survival alone. Nothing
@@ -1183,18 +1190,7 @@ persists, so rollback is removing the jar.
 
 ## Open decisions
 
-- **Watched-holder collection (S19).** Three fork branches, none with a `-26.3` twin except the set:
-  - **The insertion-ordered set** fixes the teleport-out spike. But it costs about 0.6 ms more a
-    tick for a player inside the 32k-holder lattice, and about twice the chunk-drop cost.
-  - **`exp/watched-holder-swap-remove`** (`5fa996a7`, test merge `77f4248d`) keeps an `ArrayList`
-    with an identity index and swap-remove. It fixes the spike just as well (11–41 ms) at the old
-    per-tick cost (0.41–0.53 ms), but it loses insertion order. No caller was found that depends on
-    that order: entity ids are unique per holder, and order only affects packet order.
-  - **`exp/watched-holder-chunk-index`** (S19 "Chunk buckets") removes the chunk-drop walk and the
-    per-tick walk. Teleport-out drops from 221–297 ms to 3–6 ms in that walk, and chunk steps from
-    10–15 ms to unmeasurable.
-
-  Settled by the user before S21.
+None.
 
 ## Reference: Decisions
 
@@ -1209,6 +1205,9 @@ Settled with the user on 2026-10-18, after the in-world pass:
 - **Modded arm models:** the mods' pre-rotated `_uvlock_` copies, drawn as their overlays draw them.
 - **Modded arm view range:** each overlay's own, 3.0 for PPB and 100 for enderscape-patch.
 - **Holders per owner:** keep one holder per owner, and fix the cost in the RKC Polymer fork (S19).
+- **Watched-holder collection:** chunk buckets (S19), over the insertion-ordered set and
+  swap-remove. Chosen because they remove the chunk-drop and per-tick walks, not only the slow
+  removal.
 - **Lobby:** install on both survival and the lobby (S21).
 - **Rabbits:** walls get fences' exemption from `MoveControl`'s in-block jump (S20).
 - **Wall pushers:** 0.375 wide, centred on each 0.25 wall column. The first ones were the
