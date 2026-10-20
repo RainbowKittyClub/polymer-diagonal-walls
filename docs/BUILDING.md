@@ -10,7 +10,8 @@ This file covers only where this mod departs from it.
 - **Multi-version build** (Stonecutter): 26.2 and 26.3, with 26.2 committed. Each version's keys
   are in `versions/<v>/gradle.properties`.
   - 26.3 builds against Polymer 0.18.4 from Maven.
-  - Dev servers are on ports 25640/25642 (26.2) and 25644/25646 (26.3).
+  - Each dev server run takes the first two free ports in `dev_server_ports` and writes them to
+    its version's `run/server.properties`.
   - `scripts/layouts.sh`, `scripts/seal-legs.sh` and `scripts/columns-check.js` take
     `DEV_MC=26.3` for the 26.3 server.
   - `columns-check.js` can't reach 26.3, because ViaFabric has no 26.3 server module for its
@@ -25,4 +26,4 @@ This file covers only where this mod departs from it.
   `-unshaded` and `-sources` beside it are not.
 - **No datagen.** Lang, tags and the mixin config are static resources.
 - **Test layouts** come from `scripts/layouts.sh`, which builds them over the dev server's rcon
-  (port 25640, rcon 25642 on 26.2).
+  (the port in its `run/server.properties`).
