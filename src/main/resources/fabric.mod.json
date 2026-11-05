@@ -24,6 +24,17 @@
     "polymerdiagonalwalls.mixins.json"
   ],
 
+  "custom": {
+    "fawe:lifecycle": {
+      "route": "native",
+      "blocks": [
+        "#polymerdiagonalwalls:diagonal_walls",
+        "#polymerdiagonalwalls:diagonal_fences",
+        "#polymerdiagonalwalls:diagonal_panes"
+      ]
+    }
+  },
+
   "depends": {
     "fabricloader": ">=${project.fabric_loader_version}",
     "fabric-api": "*",
