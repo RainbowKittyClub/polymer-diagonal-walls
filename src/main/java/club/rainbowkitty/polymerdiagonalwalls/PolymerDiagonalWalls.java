@@ -15,11 +15,14 @@ import club.rainbowkitty.polymerdiagonalwalls.command.DiagonalsCommand;
 import club.rainbowkitty.polymerdiagonalwalls.display.ArmIndex;
 import club.rainbowkitty.polymerdiagonalwalls.display.FenceArmModels;
 import club.rainbowkitty.polymerdiagonalwalls.fence.FenceFamily;
+import club.rainbowkitty.polymerdiagonalwalls.hedge.HedgeFamily;
 import club.rainbowkitty.polymerdiagonalwalls.lifecycle.ArmUpdates;
 import club.rainbowkitty.polymerdiagonalwalls.pane.PaneFamily;
 import club.rainbowkitty.polymerdiagonalwalls.wall.WallFamily;
 
-/** Mod entrypoint: diagonal arms between walls, fences and panes standing corner to corner. */
+/**
+ * Mod entrypoint: diagonal arms between walls, fences, panes and hedges standing corner to corner.
+ */
 public class PolymerDiagonalWalls implements ModInitializer {
     public static final String MOD_ID = "polymerdiagonalwalls";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
@@ -55,6 +58,7 @@ public class PolymerDiagonalWalls implements ModInitializer {
         WallFamily.register();
         FenceFamily.register();
         PaneFamily.register();
+        HedgeFamily.register();
         ArmIndex.register();
         ArmUpdates.register();
         ColumnRange.register();

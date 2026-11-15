@@ -24,7 +24,8 @@ import club.rainbowkitty.polymerdiagonalwalls.display.CrossArmVisual;
 public final class PaneFamily implements DiagonalFamily {
     /**
      * The panes and bars that take diagonals. It holds {@code #minecraft:bars}, the vanilla glass
-     * panes and, when present, {@code #c:glass_panes}; a server opts one out with a datapack.
+     * panes and, when present, {@code #c:glass_panes} and Blockus's panes, frames and lattices; a
+     * server opts one out with a datapack.
      */
     public static final TagKey<Block> DIAGONAL_PANES =
             TagKey.create(Registries.BLOCK, PolymerDiagonalWalls.id("diagonal_panes"));

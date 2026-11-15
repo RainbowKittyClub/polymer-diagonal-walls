@@ -9,6 +9,7 @@ import eu.pb4.polymer.resourcepack.extras.api.format.blockstate.StateMultiPartDe
 import eu.pb4.polymer.resourcepack.extras.api.format.blockstate.StateMultiPartDefinition.CombinedCondition;
 import eu.pb4.polymer.resourcepack.extras.api.format.blockstate.StateMultiPartDefinition.Condition;
 import eu.pb4.polymer.resourcepack.extras.api.format.blockstate.StateMultiPartDefinition.KeyValueCondition;
+import org.jspecify.annotations.Nullable;
 
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -26,13 +27,14 @@ public final class Multipart {
      * {@code postState}, in file order, or an empty list when the file has no multipart.
      *
      * @param armState the owner joined north and south, the state the arm draws
-     * @param postState the owner joined nowhere, whose parts the arm leaves out
+     * @param postState the owner joined nowhere, whose parts the arm leaves out, or null to keep
+     *        every part of {@code armState}
      */
     public static List<StateModelVariant> armParts(
-            BlockStateAsset asset, BlockState armState, BlockState postState) {
+            BlockStateAsset asset, BlockState armState, @Nullable BlockState postState) {
         List<StateModelVariant> parts = new ArrayList<>();
         for (StateMultiPartDefinition part : asset.multipart().orElse(List.of())) {
-            if (applies(part, armState) && !applies(part, postState)
+            if (applies(part, armState) && (postState == null || !applies(part, postState))
                     && !part.apply().isEmpty()) {
                 parts.add(part.apply().getFirst());
             }

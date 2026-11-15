@@ -1,6 +1,9 @@
 package club.rainbowkitty.polymerdiagonalwalls.display;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,13 +28,18 @@ import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.jspecify.annotations.Nullable;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CustomModelData;
+//? if <26.3
+import net.minecraft.world.item.component.MapItemColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 
 import club.rainbowkitty.polymerdiagonalwalls.PolymerDiagonalWalls;
@@ -49,6 +57,8 @@ public final class BridgedArms {
     private static final Map<String, Float> OVERLAY_VIEW_RANGES = Map.of(
             "polymer-patch-bundle", 3f,
             "enderscape-polymer-patch", 100f);
+    // polymer-patch-bundle's block colours (Blockus's foliage hedges), or null without it.
+    private static final @Nullable MethodHandle PATCH_COLOR = findPatchColor();
 
     private static final Map<BlockState, Optional<Arm>> ARMS = new IdentityHashMap<>();
     private static final Map<Block, Optional<BlockStateAsset>> BLOCKSTATES =
@@ -64,12 +74,13 @@ public final class BridgedArms {
      * overlay comes from no patch mod listed here, or its blockstate can't be read.
      *
      * @param armState the owner joined north and south, the state the arm draws
-     * @param postState the owner joined nowhere, whose parts (its post) the arm leaves out
+     * @param postState the owner joined nowhere, whose parts (its post) the arm leaves out, or null
+     *        to keep every part
      * @param length the arm's length in blocks
      * @param height the arm's y scale, as {@link ArmTransform#apply} takes it
      */
     public static List<VirtualElement> elements(Diagonal diagonal, Vec3 origin,
-            BlockState armState, BlockState postState, float length, float height) {
+            BlockState armState, @Nullable BlockState postState, float length, float height) {
         Optional<Arm> arm = ARMS.computeIfAbsent(armState, key -> resolve(armState, postState));
         if (arm.isEmpty()) {
             return List.of();
@@ -86,8 +97,62 @@ public final class BridgedArms {
         return elements;
     }
 
+    /**
+     * Tints the item displays of {@code diagonal}'s arm as polymer-patch-bundle tints its owner's
+     * own overlay: by the owner's colour at its position in {@code chunk}. Blocks without one stay
+     * as they are.
+     */
+    public static void tint(List<VirtualElement> elements, LevelChunk chunk, Diagonal diagonal) {
+        if (PATCH_COLOR == null) {
+            return;
+        }
+        int color;
+        try {
+            color = (int) PATCH_COLOR.invokeExact(diagonal.westState(), chunk, diagonal.west());
+        } catch (Throwable e) {
+            warnOnce(diagonal.westState().getBlock(), "its patch colour failed: " + e);
+            return;
+        }
+        if (color == -1) {
+            return;
+        }
+        for (VirtualElement element : elements) {
+            if (element instanceof ItemDisplayElement display) {
+                display.setItem(tinted(display.getItem(), color));
+            }
+        }
+    }
+
+    // A copy of stack drawn in color. A 26.2 bridged model tints from map_color, a 26.3 one from
+    // custom_model_data; 26.2 sets both, as the patch does, for 26.3 clients through Via.
+    private static ItemStack tinted(ItemStack stack, int color) {
+        ItemStack copy = stack.copy();
+        //? if <26.3
+        copy.set(DataComponents.MAP_COLOR, new MapItemColor(color));
+        copy.set(DataComponents.CUSTOM_MODEL_DATA,
+                new CustomModelData(List.of(), List.of(), List.of(), List.of(color)));
+        return copy;
+    }
+
+    // ColorProviderRegistry.getColor(BlockState, LevelChunk, BlockPos), -1 for an untinted block.
+    private static @Nullable MethodHandle findPatchColor() {
+        if (!FabricLoader.getInstance().isModLoaded("polymer-patch-bundle")) {
+            return null;
+        }
+        try {
+            Class<?> registry = Class.forName("me.drex.ppb.color.ColorProviderRegistry");
+            return MethodHandles.publicLookup().findStatic(registry, "getColor",
+                    MethodType.methodType(int.class, BlockState.class, LevelChunk.class,
+                            BlockPos.class));
+        } catch (ReflectiveOperationException e) {
+            PolymerDiagonalWalls.LOGGER.warn(
+                    "polymer-patch-bundle has no block colours to read; tinted arms stay grey", e);
+            return null;
+        }
+    }
+
     // The arm for armState, or empty when the block shows as itself or isn't a patch's.
-    private static Optional<Arm> resolve(BlockState armState, BlockState postState) {
+    private static Optional<Arm> resolve(BlockState armState, @Nullable BlockState postState) {
         Block block = armState.getBlock();
         if (PolymerBlockUtils.getPolymerBlockState(armState, null) == armState) {
             return Optional.empty();

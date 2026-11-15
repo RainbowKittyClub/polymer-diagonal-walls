@@ -69,7 +69,7 @@ public final class ArmIndex {
             return;
         }
         Vec3 origin = Vec3.atBottomCenterOf(pos);
-        ArmHolder holder = new ArmHolder(owned, origin);
+        ArmHolder holder = new ArmHolder(owned, origin, chunk);
         new ChunkAttachment(holder, chunk, origin, false);
         chunks(level).computeIfAbsent(chunkKey, key -> new Long2ObjectOpenHashMap<>())
                 .put(ownerKey, holder);

@@ -8,6 +8,7 @@ import eu.pb4.polymer.virtualentity.api.attachment.HolderAttachment;
 import eu.pb4.polymer.virtualentity.api.elements.VirtualElement;
 import org.jspecify.annotations.Nullable;
 
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 
 import club.rainbowkitty.polymerdiagonalwalls.collision.ColumnRange;
@@ -26,11 +27,16 @@ public final class ArmHolder extends ElementHolder {
     private final List<Diagonal> diagonals;
     private @Nullable ColumnSite columnSite;
 
-    /** Builds every arm's elements around {@code origin}, the position the holder attaches at. */
-    public ArmHolder(List<Diagonal> diagonals, Vec3 origin) {
+    /**
+     * Builds every arm's elements around {@code origin}, the position the holder attaches at in
+     * {@code chunk}, which also gives a tinted arm its colour.
+     */
+    public ArmHolder(List<Diagonal> diagonals, Vec3 origin, LevelChunk chunk) {
         this.diagonals = List.copyOf(diagonals);
         for (Diagonal diagonal : this.diagonals) {
-            for (VirtualElement element : diagonal.family().visual().elements(diagonal, origin)) {
+            List<VirtualElement> elements = diagonal.family().visual().elements(diagonal, origin);
+            BridgedArms.tint(elements, chunk, diagonal);
+            for (VirtualElement element : elements) {
                 addElement(element);
             }
         }

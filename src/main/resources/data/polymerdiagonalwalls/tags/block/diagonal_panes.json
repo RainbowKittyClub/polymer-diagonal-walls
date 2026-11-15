@@ -21,6 +21,94 @@
     {
       "id": "#c:glass_panes",
       "required": false
+    },
+    {
+      "id": "blockus:beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:white_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:orange_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:magenta_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:light_blue_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:yellow_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:lime_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:pink_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:gray_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:light_gray_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:cyan_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:purple_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:blue_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:brown_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:green_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:red_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:black_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:rainbow_beveled_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:rainbow_glass_pane",
+      "required": false
+    },
+    {
+      "id": "blockus:paper_wall",
+      "required": false
+    },
+    {
+      "id": "blockus:wooden_frame",
+      "required": false
+    },
+    {
+      "id": "#blockus:wooden_lattices",
+      "required": false
     }
   ]
 }

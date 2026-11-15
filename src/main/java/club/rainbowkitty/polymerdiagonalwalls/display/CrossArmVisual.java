@@ -19,7 +19,7 @@ import net.minecraft.world.phys.Vec3;
 import club.rainbowkitty.polymerdiagonalwalls.diagonal.Diagonal;
 
 /**
- * A fence or pane diagonal's arm: the owner's state joined north and south, placed by
+ * A fence, pane or hedge diagonal's arm: the owner's state joined north and south, placed by
  * {@link ArmTransform} at full height. One block display draws it. A fence's model draws its post
  * under every state, so a fence arm also gets an item display of its sides alone from
  * {@link FenceArmModels}, and {@link PackAudience} sends each watcher one of the two. A block that
@@ -30,26 +30,42 @@ public final class CrossArmVisual implements ArmVisual {
     private static final float FENCE_LENGTH = 1.1875f;
     // A pane end stays inside a 2 px post within 0.026 of its centre: 1.362 at least.
     private static final float PANE_LENGTH = 1.375f;
+    // A 6 px hedge bar end stays inside a 6 px post within 0.078 of its centre: 1.259 at least.
+    private static final float HEDGE_LENGTH = 1.3125f;
     // The post-less arm's parts are already where its blockstate draws them.
     private static final Quaternionfc NO_TURN = new Quaternionf();
 
     private final float length;
     private final boolean hasPost;
+    private final boolean keepsPostParts;
 
-    // One visual per arm length, and whether its block display shows a post at the corner.
-    private CrossArmVisual(float length, boolean hasPost) {
+    // One visual per arm length, whether its block display shows a post at the corner, and
+    // whether a bridged arm keeps the post's parts.
+    private CrossArmVisual(float length, boolean hasPost, boolean keepsPostParts) {
         this.length = length;
         this.hasPost = hasPost;
+        this.keepsPostParts = keepsPostParts;
     }
 
     /** The arm of a fence diagonal, 1.1875 long. */
     public static CrossArmVisual fence() {
-        return new CrossArmVisual(FENCE_LENGTH, true);
+        return new CrossArmVisual(FENCE_LENGTH, true, false);
     }
 
-    /** The arm of a pane or bars diagonal, 1.375 long. */
+    /**
+     * The arm of a pane or bars diagonal, 1.375 long. A glass pane's sides stop at its 2 px post,
+     * so a bridged arm draws the post's parts too, or it would be split in the middle.
+     */
     public static CrossArmVisual pane() {
-        return new CrossArmVisual(PANE_LENGTH, false);
+        return new CrossArmVisual(PANE_LENGTH, false, true);
+    }
+
+    /**
+     * The arm of a hedge diagonal, 1.3125 long. A hedge's sides stop at its post, so a bridged arm
+     * draws the post's parts too, or it would be open in the middle.
+     */
+    public static CrossArmVisual hedge() {
+        return new CrossArmVisual(HEDGE_LENGTH, false, true);
     }
 
     /**
@@ -68,8 +84,9 @@ public final class CrossArmVisual implements ArmVisual {
     @Override
     public List<VirtualElement> elements(Diagonal diagonal, Vec3 origin) {
         BlockState bar = barState(diagonal.westState(), true);
-        List<VirtualElement> bridged = BridgedArms.elements(diagonal, origin, bar,
-                barState(diagonal.westState(), false), length, ArmTransform.FULL_HEIGHT);
+        BlockState post = keepsPostParts ? null : barState(diagonal.westState(), false);
+        List<VirtualElement> bridged = BridgedArms.elements(diagonal, origin, bar, post, length,
+                ArmTransform.FULL_HEIGHT);
         if (!bridged.isEmpty()) {
             return bridged;
         }
